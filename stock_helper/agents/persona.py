@@ -54,8 +54,11 @@ _CJK_RE = re.compile(r"[\u4e00-\u9fff\u3400-\u4dbf]")
 
 def detect_chat_language(message: str, thread_context: str = "") -> str:
     """Return 'zh' if the user is writing Chinese, else 'en'."""
-    text = f"{message}\n{thread_context or ''}"
-    if _CJK_RE.search(text):
+    if _CJK_RE.search(message):
+        return "zh"
+    if message.strip():
+        return "en"
+    if _CJK_RE.search(thread_context or ""):
         return "zh"
     return "en"
 
