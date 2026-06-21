@@ -9,6 +9,7 @@ from stock_helper.collectors.market import (
     format_earnings_markdown,
     format_quotes_markdown,
 )
+from stock_helper.agents.persona import brief_greeting, get_persona, persona_disclaimer
 from stock_helper.watchlist import get_core_tickers, list_agent_tracking
 
 
@@ -28,8 +29,13 @@ def build_template_brief(session: str) -> str:
         or "- None"
     )
 
-    return f"""# Stock Helper Daily Brief
-**Date:** {today} | **Session:** {session} | **Mode:** template (LLM keys not configured)
+    display = get_persona().get("display_name", "Saki · Stock Helper")
+    greeting = brief_greeting(session)
+
+    return f"""# {display} — template mode (no LLM keys yet~)
+**Date:** {today} | **Session:** {session}
+
+{greeting}
 
 ## Market Snapshot
 {quotes}
@@ -44,8 +50,8 @@ def build_template_brief(session: str) -> str:
 {agent_section}
 
 ## Risk
-- Template mode: no AI analysis. Set GOOGLE_API_KEY and ANTHROPIC_API_KEY for full brief.
+- Template mode~ Set GOOGLE_API_KEY and ANTHROPIC_API_KEY for the full Saki experience ✨
 
 ---
-*For informational purposes only. Not investment advice.*
+{persona_disclaimer()}
 """

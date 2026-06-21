@@ -8,6 +8,12 @@ from langgraph.graph import END, START, StateGraph
 
 from stock_helper.agents.cost_tracker import get_active_tracker, reset_tracker
 from stock_helper.agents.fallback import build_template_brief
+from stock_helper.agents.persona import (
+    brief_greeting,
+    brief_system_prompt,
+    get_persona,
+    persona_disclaimer,
+)
 from stock_helper.agents.llm import LLMNotConfigured, invoke_json_node, invoke_node_llm
 from stock_helper.collectors.fred import FREDClient
 from stock_helper.collectors.ingest import load_recent_news
@@ -38,10 +44,7 @@ class BriefState(TypedDict):
     cost_notes: Annotated[list[str], operator.add]
 
 
-SYSTEM = (
-    "You are a US equity research assistant. Be factual, cite uncertainty, "
-    "and never give guaranteed buy/sell advice. Output concise markdown."
-)
+SYSTEM = brief_system_prompt()
 
 SESSION_PROFILES = {
     "morning": {
@@ -231,11 +234,16 @@ def assemble_brief_markdown(
     profile = _profile(session)
     titles = profile["sections"]
     session_title = "Pre-Market Brief" if session == "morning" else "After-Hours Recap"
+    display = get_persona().get("display_name", "Saki · Stock Helper")
+    greeting = brief_greeting(session)
 
     sections = [
-        f"# Stock Helper — {session_title}",
+        f"# {display_name} — {session_title}",
         f"**Date:** {today} · **Session:** {profile['label']} · **Macro score:** {macro_score:+.2f}",
-        "",
+    ]
+    if greeting:
+        sections.extend(["", greeting, ""])
+    sections.extend([
         f"## {titles['market']}",
         state.get("market", "").strip() or "_No quote data._",
         "",
@@ -259,8 +267,8 @@ def assemble_brief_markdown(
         "",
         "---",
         "",
-        "*For informational purposes only. Not investment advice.*",
-    ]
+        persona_disclaimer(),
+    ])
     return "\n".join(sections)
 
 

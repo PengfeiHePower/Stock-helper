@@ -233,14 +233,9 @@ def markdown_to_telegram_html(md: str) -> str:
 def brief_to_telegram_messages(brief_md: str, session: str) -> list[str]:
     """Split brief into Telegram HTML messages (section-aware)."""
     html = markdown_to_telegram_html(brief_md)
-    html = html.replace(
-        "📈 <b>Stock Helper Daily Brief</b>",
-        f"📈 <b>Stock Helper Daily Brief</b>\n<i>Session: {_escape_telegram_html(session)}</i>",
-        1,
-    )
 
     # Split on section emoji headers
-    parts = re.split(r"(?=\n[📊📅🌍🏭📋🤖⚠️])", html)
+    parts = re.split(r"(?=\n[📊📅🌍🏭📋🎯🤖⚠️])", html)
     parts = [p.strip() for p in parts if p.strip()]
     if not parts:
         return [html[:4096]]

@@ -12,10 +12,9 @@ from stock_helper.watchlist import (
     remove_agent_tracking,
 )
 
-SYSTEM = (
-    "You are a US stock personal assistant. Answer using provided context. "
-    "Cite uncertainty. Not investment advice."
-)
+from stock_helper.agents.persona import chat_system_prompt
+
+SYSTEM = chat_system_prompt()
 
 
 def route_slack_intent(message: str) -> str:

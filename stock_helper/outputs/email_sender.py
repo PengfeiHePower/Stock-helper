@@ -12,7 +12,7 @@ def send_brief_email(brief_md: str, session: str) -> bool:
         return False
 
     subject = (
-        f"Stock Helper — {'Pre-Market' if session == 'morning' else 'After-Hours Recap'}"
+        f"Saki · {'Pre-Market' if session == 'morning' else 'After-Hours Recap'}"
     )
     _, html = render_email(brief_md, session)
 

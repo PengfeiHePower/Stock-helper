@@ -12,6 +12,7 @@ US equity personal assistant: collects news, runs LangGraph multi-agent analysis
 - **Plan A models**: Gemini Flash-Lite (L1) + Claude Sonnet (L2/L3) with per-node routing
 - **Cost tracker**: budget caps in `config/models.yaml`, logged to SQLite
 - **Outputs**: Resend email, Telegram bot, optional Slack
+- **Persona** (`config/persona.yaml`): default voice is lively JK-style **Saki** — professional data, playful tone
 
 ## Setup (Conda)
 

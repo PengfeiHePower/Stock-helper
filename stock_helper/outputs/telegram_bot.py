@@ -11,7 +11,7 @@ from stock_helper.agents.chat import (
     handle_watchlist_command,
     slack_chat,
 )
-from stock_helper.config import get_settings
+from stock_helper.agents.persona import chat_greeting
 from stock_helper.outputs.brief_renderer import (
     brief_to_telegram_messages,
     markdown_to_telegram_html,
@@ -71,19 +71,19 @@ def post_brief_to_telegram(brief_md: str, session: str) -> None:
         client.send_message(chat_id, msg, parse_mode="HTML")
 
 
-HELP_TEXT = """Stock Helper — US equity assistant
+HELP_TEXT = chat_greeting() + """
 
-Commands:
-/start — show this help + your chat id
+Commands~
+/start — help + your chat id
 /watchlist — show watchlists
 /track TICKER — add to agent tracking
 /untrack TICKER — remove from agent tracking
 
-Or send any question, e.g.:
+Try asking:
 • NVDA news today?
 • Why is macro score negative?
 
-Not investment advice."""
+Not investment advice, okay? ✨"""
 
 
 def _handle_command(text: str) -> str | None:
