@@ -1,0 +1,36 @@
+[project]
+name = "stock-helper"
+version = "0.1.0"
+description = "US stock personal assistant: daily brief via email/Slack with LangGraph agents"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    # LangGraph 1.x requires langchain-core 1.x (TypedDict works best on Python 3.12+)
+    "langgraph>=1.2.0,<2",
+    "langchain-core>=1.4.0,<2",
+    "langchain-openai>=0.3.0",
+    "langchain-anthropic>=0.3.0",
+    "langchain-google-genai>=2.1.0",
+    "litellm>=1.60.0",
+    "httpx>=0.28.0",
+    "feedparser>=6.0.0",
+    "slack-bolt>=1.22.0",
+    "apscheduler>=3.11.0",
+    "sqlalchemy>=2.0.0",
+    "pydantic>=2.10.0,<3",
+    "pydantic-settings>=2.7.0",
+    "pyyaml>=6.0.0",
+    "jinja2>=3.1.0",
+    "markdown>=3.7.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.scripts]
+stock-helper = "stock_helper.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["stock_helper"]

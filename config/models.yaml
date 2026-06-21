@@ -1,0 +1,32 @@
+# Plan A: Gemini Flash-Lite (L1) + Claude Sonnet (L2/L3)
+tiers:
+  l1:
+    model: gemini/gemini-2.5-flash-lite
+    max_tokens: 512
+    temperature: 0
+  l2:
+    model: anthropic/claude-sonnet-4-6
+    max_tokens: 4096
+    temperature: 0.2
+  l3:
+    model: anthropic/claude-sonnet-4-6
+    max_tokens: 8192
+    temperature: 0.3
+
+node_models:
+  classify_event: l1
+  map_ticker: l1
+  summarize_stock: l2
+  macro_agent: l2
+  sector_agent: l2
+  risk_agent: l2
+  final_brief: l2
+  slack_router: l1
+  slack_chat_simple: l1
+  slack_chat_analytical: l2
+  slack_chat_deep: l3
+
+budget:
+  daily_brief_max_usd: 1.50
+  slack_session_max_usd: 0.05
+  monthly_max_usd: 30.0

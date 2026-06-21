@@ -1,0 +1,27 @@
+core:
+  - AAPL
+  - MSFT
+  - NVDA
+  - GOOGL
+  - AMZN
+  - META
+  - TSLA
+  - JPM
+  - V
+  - UNH
+
+lists:
+  ai_infra:
+    - NVDA
+    - AMD
+    - AVGO
+    - SMCI
+  dividend:
+    - JNJ
+    - PG
+    - KO
+
+agent_tracking:
+  enabled: true
+  max_size: 15
+  auto_expire_days: 14

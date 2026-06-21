@@ -1,0 +1,102 @@
+from __future__ import annotations
+
+from stock_helper.agents.cost_tracker import BudgetExceeded, reset_tracker
+from stock_helper.agents.llm import LLMNotConfigured, invoke_node_llm
+from stock_helper.collectors.ingest import load_recent_news
+from stock_helper.storage.db import BriefRecord, get_session
+from stock_helper.watchlist import (
+    add_agent_tracking,
+    all_watchlist_tickers,
+    get_core_tickers,
+    list_agent_tracking,
+    remove_agent_tracking,
+)
+
+SYSTEM = (
+    "You are a US stock personal assistant. Answer using provided context. "
+    "Cite uncertainty. Not investment advice."
+)
+
+
+def route_slack_intent(message: str) -> str:
+    lower = message.lower()
+    if any(k in lower for k in ("deep", "detailed", "compare", "portfolio", "risk")):
+        return "slack_chat_deep"
+    if any(k in lower for k in ("why", "analysis", "impact", "outlook")):
+        return "slack_chat_analytical"
+    return "slack_chat_simple"
+
+
+def slack_chat(message: str, thread_context: str = "") -> str:
+    lower = message.lower().strip()
+    if lower in ("watchlist", "list watchlist", "show watchlist"):
+        return format_watchlist_summary()
+
+    tracker = reset_tracker()
+    try:
+        tracker.check_slack_budget()
+    except BudgetExceeded as e:
+        return str(e)
+
+    node = route_slack_intent(message)
+    session = get_session()
+    latest = session.query(BriefRecord).order_by(BriefRecord.id.desc()).first()
+    session.close()
+
+    brief_excerpt = latest.markdown[:3000] if latest else "No brief yet."
+    news = load_recent_news(limit=15)
+    news_text = "\n".join(
+        f"- [{n.get('tickers')}] {n['headline']}" for n in news
+    )
+    agent_text = format_agent_tracking_lines()
+
+    user = (
+        f"User message: {message}\n\n"
+        f"Thread context:\n{thread_context or 'none'}\n\n"
+        f"Core watchlist: {', '.join(get_core_tickers())}\n\n"
+        f"Agent tracking:\n{agent_text}\n\n"
+        f"Latest brief excerpt:\n{brief_excerpt}\n\n"
+        f"Recent headlines:\n{news_text}"
+    )
+    try:
+        return invoke_node_llm(node, SYSTEM, user, tracker)
+    except (BudgetExceeded, LLMNotConfigured) as e:
+        return str(e) if str(e) else (
+            "LLM not configured. Set GOOGLE_API_KEY and ANTHROPIC_API_KEY in .env"
+        )
+
+
+def format_watchlist_summary() -> str:
+    core = get_core_tickers()
+    agent = list_agent_tracking()
+    lines = [
+        f"*Core ({len(core)}):* {', '.join(core)}",
+        f"*All tracked ({len(all_watchlist_tickers())}):* {', '.join(all_watchlist_tickers())}",
+    ]
+    if agent:
+        lines.append("*Agent tracking:*")
+        for r in agent:
+            lines.append(f"  • {r['ticker']} — {r['reason']}")
+    lines.append("\nCommands: `track TICKER` | `untrack TICKER`")
+    return "\n".join(lines)
+
+
+def format_agent_tracking_lines() -> str:
+    rows = list_agent_tracking()
+    if not rows:
+        return "- none"
+    return "\n".join(f"- {r['ticker']}: {r['reason']}" for r in rows)
+
+
+def handle_watchlist_command(message: str) -> str | None:
+    parts = message.strip().split()
+    if len(parts) != 2:
+        return None
+    cmd, ticker = parts[0].lower(), parts[1].upper()
+    if cmd == "track":
+        ok, msg = add_agent_tracking(ticker, "Added via Slack")
+        return msg
+    if cmd == "untrack":
+        ok, msg = remove_agent_tracking(ticker)
+        return msg
+    return None
