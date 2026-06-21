@@ -34,7 +34,10 @@ def fetch_core_quotes() -> list[dict[str, Any]]:
 
 
 def get_etf_tickers() -> list[str]:
-    return list(load_yaml("watchlist.yaml").get("etfs") or [])
+    wl = load_yaml("watchlist.yaml")
+    if wl.get("etfs"):
+        return list(wl["etfs"])
+    return list((wl.get("lists") or {}).get("etfs") or [])
 
 
 def format_quotes_markdown(quotes: list[dict[str, Any]]) -> str:

@@ -1,25 +1,115 @@
 # Stock Helper
 
-US equity personal assistant: collects news, runs LangGraph multi-agent analysis, delivers a daily brief via **email** and **Telegram**, with optional Slack support.
+[中文文档](README.zh-CN.md)
+
+US equity personal assistant: collects news, runs a LangGraph multi-agent pipeline, and delivers briefs plus real-time alerts via **Telegram** and **email** (optional Slack).
 
 ## Features
 
-- **Watchlist** (`config/watchlist.yaml`): core tickers, themed lists, agent tracking
-- **Star IPO radar** (`config/ipos.yaml`): Finnhub IPO calendar + manual watch list + large-deal filter
-- **Real-time alerts** (`config/alerts.yaml`): SEC filings, material news, price moves → Telegram pings
-- **Weekly wrap**: Friday 17:30 ET brief with macro trend + sector rotation recap
-- **Collectors**: Finnhub news/quotes, SEC EDGAR filings, FRED macro (optional)
-- **LangGraph pipeline**: market snapshot → macro → sector → stocks → agent picks → risk → final brief
-- **Template fallback**: runs without LLM keys (quotes + headlines only)
-- **Agent auto-tracking**: recommends tickers from news frequency
-- **Plan A models**: Gemini Flash-Lite (L1) + Claude Sonnet (L2/L3) with per-node routing
-- **Cost tracker**: budget caps in `config/models.yaml`, logged to SQLite
-- **Outputs**: Resend email, Telegram bot, optional Slack
-- **Persona** (`config/persona.yaml`): default voice is lively JK-style **Moka-chan** — professional data, playful tone
+### Briefs (3 sessions)
+
+| Session | Schedule (ET) | Focus |
+|---------|---------------|--------|
+| **Morning** | Weekdays 7:00 | Pre-market snapshot, macro/sectors/stocks, **watchlist earnings** (today + week), star IPOs |
+| **Close** | Weekdays 16:45 | Closing recap + **Since Pre-Market Brief** (macro score delta, new headlines, agent tracking changes, Morning vs Reality) |
+| **Weekly** | Friday 17:30 | **Macro & tracking trends** (week path, agent adds), sector rotation, next-week earnings, look-ahead |
+
+All sessions share: LangGraph analysis (macro → sector → stocks → agent picks → risk), code-assembled markdown (no LLM truncation), HTML email + Telegram push.
+
+Manual run: `stock-helper brief --session morning|close|weekly`
+
+### Brief structure
+
+Each brief opens with **Moka-chan · …** title, date/session line, **macro score**, and a session greeting. Sections below are assembled in code (deterministic order; final body is not LLM-generated, so emails/Telegram are not truncated).
+
+**Morning** — forward-looking, pre-open
+
+| # | Section | Source |
+|---|---------|--------|
+| 1 | Pre-Market Snapshot | Core + ETF quotes (Finnhub) |
+| 2 | Watchlist Earnings — Today & This Week | Finnhub calendar, watchlist tickers |
+| 3 | Star IPO Radar | Finnhub IPO + `config/ipos.yaml` |
+| 4 | Macro Backdrop for Today | FRED + headlines → LLM |
+| 5 | Sectors to Watch | Headlines → LLM |
+| 6 | Today's Focus — Stocks & ETFs | Per-ticker news → LLM |
+| 7 | Also on Radar | Agent tracking list + headlines |
+| 8 | Today's Risk Flags | LLM |
+| — | Disclaimer | `config/persona.yaml` |
+
+**Close** — recap vs pre-market
+
+| # | Section | Source |
+|---|---------|--------|
+| 1 | **Since Pre-Market Brief** | Macro score delta, new headlines, agent tracking changes, **Morning vs Reality** (LLM vs morning brief) |
+| 2 | Closing Snapshot | Core quotes |
+| 3 | Up Next — Tonight & Tomorrow Pre-Market | Earnings (AMC / next-day BMO) |
+| 4 | Star IPO Radar | Same as morning |
+| 5 | Macro — Today's Take | LLM |
+| 6 | Sector Recap | LLM |
+| 7 | Stock Recap & Attribution | LLM |
+| 8 | Agent Tracking — Today | Agent list |
+| 9 | Surprises & Remaining Risks | LLM |
+
+**Weekly** (Friday) — week in review + next week
+
+| # | Section | Source |
+|---|---------|--------|
+| 1 | **This Week — Macro & Tracking** | DB: macro score path Mon→Fri, agent adds this week |
+| 2 | Weekly Performance Snapshot | Core quotes |
+| 3 | Next Week — Earnings Watch | 14-day calendar, next 7 days highlighted |
+| 4 | Star IPO Radar | Same as daily |
+| 5 | Macro — Week in Review | LLM |
+| 6 | Sector Rotation This Week | LLM |
+| 7 | Watchlist Weekly Recap | LLM |
+| 8 | Agent Tracking — This Week | Agent list |
+| 9 | Look Ahead & Risks | LLM |
+
+Without LLM keys, template mode still includes snapshot, earnings, IPO, headlines, and agent list; LLM sections are omitted or stubbed.
+
+### Data collection
+
+- **Finnhub** — company/market news, quotes, earnings & IPO calendars
+- **SEC EDGAR** — 8-K / 10-K / 10-Q for watchlist (requires `SEC_USER_AGENT`)
+- **FRED** — optional macro series (requires `FRED_API_KEY`)
+- **L1 classify** — tags news (`earnings`, `m_and_a`, …) when Gemini key is set
+- **Template fallback** — quotes + headlines only when LLM keys are missing
+
+### Watchlist & agent
+
+- **`config/watchlist.yaml`** — `core` tickers, themed `lists`, agent tracking limits
+- **Agent auto-tracking** — recommends tickers from news frequency; CLI/Telegram add/remove
+- **Star IPO radar** — **`config/ipos.yaml`**: Finnhub calendar + manual watch list + large-deal filter
+
+### Real-time alerts
+
+- **`config/alerts.yaml`** — polled by the **schedule** process (not the chat bot)
+- Telegram pings on: SEC filings, material headlines, watchlist **price moves** (per-symbol rules, no LLM)
+- Defaults: 10 min price poll, 30 min news ingest, skips duplicate ingest after brief runs
+
+### Telegram (brief + chat)
+
+- Scheduled briefs posted to `TELEGRAM_CHAT_ID`
+- **Moka-chan** chat bot (`stock-helper telegram`): Q&A on news/watchlist/brief, 中文/English, **persistent chat memory** (SQLite)
+- Commands: `/start`, `/watchlist`, `/track TICKER`, `/untrack TICKER`
+
+See [docs/TELEGRAM.md](docs/TELEGRAM.md) for BotFather setup.
+
+### LLM, persona & cost
+
+- **Plan A** — Gemini Flash-Lite (L1) + Claude Sonnet (L2/L3); routing in **`config/models.yaml`**
+- **Persona** — **`config/persona.yaml`**: Moka-chan voice (lively tone, factual content)
+- **Cost tracker** — per-run budgets, logged to SQLite
+
+### Other outputs
+
+- **Email** — full HTML brief via Resend (`RESEND_API_KEY`, `EMAIL_FROM`, `EMAIL_TO`)
+- **Slack** — optional Socket Mode bot + brief channel (`SLACK_*`)
+
+---
 
 ## Setup (Conda)
 
-Requires **Python 3.12+** (LangGraph + Pydantic TypedDict state works reliably on 3.12).
+Requires **Python 3.12+**.
 
 ```bash
 cd stock_helper
@@ -27,175 +117,142 @@ conda activate stock
 pip install -e .
 
 cp .env.example .env
-# Fill in API keys
+# Fill in API keys — see Configuration below
 ```
 
 | Key | Purpose |
 |-----|---------|
-| `FINNHUB_API_KEY` | News & quotes |
-| `GOOGLE_API_KEY` | L1 (Gemini) |
-| `ANTHROPIC_API_KEY` | L2/L3 (Sonnet) |
-| `RESEND_API_KEY` + `EMAIL_TO` | Daily email (full brief) |
-| `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` | Telegram brief + chat |
+| `FINNHUB_API_KEY` | News, quotes, earnings/IPO calendars |
+| `GOOGLE_API_KEY` | L1 (Gemini classify + simple chat) |
+| `ANTHROPIC_API_KEY` | L2/L3 (brief agents + analytical chat) |
+| `FRED_API_KEY` | Optional macro data in brief |
+| `SEC_USER_AGENT` | Required for SEC; **use your real email** |
+| `RESEND_API_KEY` + `EMAIL_FROM` + `EMAIL_TO` | Email briefs |
+| `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` | Brief push, alerts, chat |
 | `SLACK_*` | Optional Slack |
+| `BRIEF_TIMEZONE` | Scheduler timezone (default `America/New_York`) |
+| `DATABASE_URL` | SQLite path (default `data/stock_helper.db`) |
+
+---
 
 ## Commands
 
 ```bash
-stock-helper status
-stock-helper brief --session morning
+stock-helper status                              # config + DB stats
+stock-helper ingest                              # fetch watchlist news (respects ingest cooldown when chained)
+
+stock-helper brief --session morning             # full pipeline + deliver
 stock-helper brief --session close
 stock-helper brief --session weekly
-stock-helper alerts          # one-shot alert poll (test)
+
+stock-helper watchlist show
+stock-helper watchlist track NVDA
+stock-helper watchlist untrack NVDA
+stock-helper watchlist recommend                 # show suggestions
+stock-helper watchlist recommend --apply         # auto-add recommendations
+
+stock-helper alerts                              # one alert poll (test; bypasses market-hours window)
+stock-helper schedule                            # blocking scheduler (briefs + alerts)
+stock-helper telegram                            # chat bot (long polling)
+stock-helper slack                               # optional Slack bot
 ```
 
-### Run schedule + Telegram bot (background)
+### Background (recommended)
 
 ```bash
-./scripts/start.sh      # start both
-./scripts/status.sh     # check processes + API config
-./scripts/stop.sh       # stop both
+./scripts/start.sh      # schedule + telegram
+./scripts/status.sh
+./scripts/stop.sh
 ```
 
 Logs: `logs/schedule.log`, `logs/telegram.log`
 
-Or run manually in tmux:
-
-```bash
-stock-helper schedule          # briefs 7:00 / 16:45 / Fri 17:30 ET + alert polling
-stock-helper telegram          # conversational bot
-```
+---
 
 ## Configuration
 
-All YAML configs live in `config/`. Edit files, then restart `./scripts/stop.sh && ./scripts/start.sh` (scheduler + Telegram bot reload on restart). Manual `stock-helper brief` picks up YAML immediately.
+YAML files live in `config/`. After editing, restart `./scripts/stop.sh && ./scripts/start.sh` for schedule/Telegram. `stock-helper brief` reloads YAML on each run.
 
-### `.env` — secrets & infrastructure
+### `.env`
 
-Copy from `.env.example`. Never commit `.env`.
+Secrets and paths — see Setup table. Run `stock-helper status` to see which keys are configured.
 
-| Variable | What to change |
-|----------|----------------|
-| `FINNHUB_API_KEY` | Required for quotes, news, earnings/IPO calendars |
-| `GOOGLE_API_KEY` | L1 Gemini (news classify, simple chat) |
-| `ANTHROPIC_API_KEY` | L2/L3 Sonnet (brief agents, deep chat) |
-| `FRED_API_KEY` | Optional macro series in brief |
-| `RESEND_API_KEY` + `EMAIL_FROM` + `EMAIL_TO` | Email brief delivery |
-| `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` | Brief push + alerts + chat bot |
-| `SEC_USER_AGENT` | **Must include your real email** (SEC fair access) |
-| `BRIEF_TIMEZONE` | Scheduler timezone (default `America/New_York`) |
-| `DATABASE_URL` | SQLite path (default `data/stock_helper.db`) |
-
-Check what is configured: `stock-helper status`
-
----
-
-### `config/watchlist.yaml` — tickers & agent tracking
+### `config/watchlist.yaml`
 
 ```yaml
-core: [AAPL, MSFT, ...]       # Always in brief + default news ingest
+core: [AAPL, MSFT, ...]       # Brief focus + news ingest
 lists:
   ai_infra: [...]             # Themed groups (also ingested)
-  etfs: [SPY, QQQ, SMH]       # Added to morning quote snapshot
+  etfs: [SPY, QQQ, SMH]       # Extra quotes in morning snapshot
 agent_tracking:
   enabled: true
-  max_size: 15                # Cap auto/manual agent list
-  auto_expire_days: 14        # Remove stale agent picks
+  max_size: 15
+  auto_expire_days: 14
 ```
 
-**Common edits:** add/remove `core` tickers; create new `lists.*` themes; tune `max_size` / `auto_expire_days`.
+Manage agent list: Telegram `/track`, `/untrack`, or `stock-helper watchlist` subcommands.
 
-Telegram/CLI: `/track TICKER`, `/untrack TICKER`, or `stock-helper watchlist track NVDA`
-
----
-
-### `config/alerts.yaml` — real-time Telegram alerts
-
-Runs inside the **schedule** process (not the Telegram chat bot). Default tuned to reduce Finnhub usage.
+### `config/alerts.yaml`
 
 | Key | Default | Meaning |
 |-----|---------|---------|
-| `enabled` | `true` | Master switch for alert polling |
-| `poll_interval_minutes` | `10` | How often to check **prices** (Finnhub `/quote` per symbol) |
-| `news_ingest_every_n_polls` | `3` | Ingest news every N price polls → **30 min** at default |
-| `skip_ingest_if_ran_within_minutes` | `30` | **Skip alert ingest** if brief/CLI just ingested (avoids 7:00 duplicate) |
-| `market_hours.start` / `end` | `07:00`–`20:00` | ET window for polling (weekdays) |
-| `price.default_move_pct` | `5.0` | Watchlist daily move alert threshold (%) |
-| `price.rules[]` | NVDA 3%, SPY 2%, … | Per-symbol overrides; `direction: up` for VIX-only spikes |
+| `enabled` | `true` | Master switch |
+| `poll_interval_minutes` | `10` | Price check interval (Finnhub `/quote`) |
+| `news_ingest_every_n_polls` | `3` | Ingest every N polls → **30 min** at default |
+| `skip_ingest_if_ran_within_minutes` | `30` | Skip alert ingest after brief/CLI ingest |
+| `market_hours` | 07:00–20:00 ET, Mon–Fri | Alert polling window |
+| `price.default_move_pct` | `5.0` | Default daily move threshold (%) |
+| `price.rules[]` | e.g. NVDA 3%, VIX 8% up | Per-symbol overrides |
 
-**News alerts** fire on: SEC 8-K/10-K/10-Q, headline keywords (`earnings`, `merger`, …), or L1-classified types (`earnings`, `m_and_a`, `legal`).
+News alerts: SEC forms, material keywords, or L1 types (`earnings`, `m_and_a`, `legal`).
 
-**More sensitive:** lower `poll_interval_minutes` to `5`, set `news_ingest_every_n_polls: 2` (10 min ingest).  
-**Save API calls:** raise poll to `15`, ingest every `4` polls (60 min), or set `skip_ingest_if_ran_within_minutes: 45`.
+Tune sensitivity: `poll_interval_minutes: 5`, `news_ingest_every_n_polls: 2`.  
+Save API: `poll_interval_minutes: 15`, `news_ingest_every_n_polls: 4`.
 
-Test: `stock-helper alerts` (one manual cycle; `force` bypasses market-hours check but still respects ingest cooldown unless brief ran &lt;30 min ago).
-
----
-
-### `config/ipos.yaml` — star IPO radar (in brief)
+### `config/ipos.yaml`
 
 | Key | Meaning |
 |-----|---------|
-| `enabled` | Show IPO section in brief |
-| `lookahead_days` | Finnhub IPO calendar horizon |
-| `min_deal_value_usd` | Auto-flag large deals (e.g. `300000000` = $300M+) |
-| `auto_notable` | Include large deals even if not on `watch` list |
-| `watch` | Company names/tickers to always highlight (substring match) |
+| `enabled` | IPO section in brief |
+| `lookahead_days` | Calendar horizon |
+| `min_deal_value_usd` | Auto-flag large deals (e.g. 300000000) |
+| `auto_notable` | Include large deals not on `watch` |
+| `watch` | Names/tickers to always highlight |
 
-Add rumored names (Stripe, Databricks, …); they appear once Finnhub lists them.
-
----
-
-### `config/persona.yaml` — Moka-chan voice
+### `config/persona.yaml`
 
 | Key | Meaning |
 |-----|---------|
-| `name` / `display_name` | Bot name in briefs & greetings |
-| `brief_system` / `chat_system` | LLM system prompts (`{name}` placeholder) |
-| `brief_greeting.morning` / `close` / `weekly` | Opening line per session |
+| `name` / `display_name` | Moka-chan branding |
+| `brief_system` / `chat_system` | LLM prompts (`{name}` placeholder) |
+| `brief_greeting` | `morning` / `close` / `weekly` openers |
 | `chat_greeting` | Telegram `/start` text |
-| `disclaimer` | Footer on daily briefs |
+| `disclaimer` | Brief footer |
 
-Chat rules (language, no disclaimer spam) are in `chat_system`.
+Chat language matching and tone rules live in `chat_system`.
 
----
-
-### `config/models.yaml` — LLM routing & budget
+### `config/models.yaml`
 
 | Section | Meaning |
 |---------|---------|
-| `tiers.l1/l2/l3` | Model IDs, temperature, max tokens |
-| `node_models` | Which brief/chat node uses which tier |
-| `budget.daily_brief_max_usd` | Cap per brief run |
-| `budget.slack_session_max_usd` | Cap per Telegram/chat session turn |
-| `budget.monthly_max_usd` | Monthly total cap |
-
-Lower `daily_brief_max_usd` to force cheaper/shorter outputs; map heavy nodes to `l1` to save cost (quality trade-off).
+| `tiers.l1/l2/l3` | Models, temperature, max tokens |
+| `node_models` | Which agent node uses which tier |
+| `budget.*` | Daily brief, chat session, and monthly USD caps |
 
 ---
 
-### Scheduled jobs (ET, `BRIEF_TIMEZONE`)
+## Scheduled jobs (ET, `BRIEF_TIMEZONE`)
 
 | Time | Job |
 |------|-----|
 | 7:00 weekdays | Morning brief + ingest |
 | 16:45 weekdays | Close brief + ingest |
 | 17:30 Friday | Weekly wrap |
-| Every `poll_interval_minutes` (7:00–20:00 weekdays) | Price alerts; news ingest per `alerts.yaml` |
+| Every `poll_interval_minutes`, 7:00–20:00 weekdays | Price alerts; periodic news ingest |
 
-Morning/close briefs always ingest once; alert polling **skips ingest** for 30 minutes afterward so 7:00 / 16:45 are not doubled.
+Brief runs always ingest once; alert polling skips ingest for `skip_ingest_if_ran_within_minutes` afterward.
 
 ---
-
-## Telegram setup
-
-See [docs/TELEGRAM.md](docs/TELEGRAM.md) for step-by-step BotFather setup.
-
-Quick version:
-
-1. Message [@BotFather](https://t.me/BotFather) → `/newbot` → copy token → `TELEGRAM_BOT_TOKEN`
-2. Run `stock-helper telegram`, message your bot `/start` → copy chat id → `TELEGRAM_CHAT_ID`
-3. `stock-helper brief` posts the daily brief to that chat
 
 ## Disclaimer
 

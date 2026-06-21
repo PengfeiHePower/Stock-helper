@@ -160,8 +160,6 @@ def collect_context(state: BriefState) -> dict:
     quotes = fetch_quotes(get_core_tickers())
     if state["session"] == "morning":
         quotes = quotes + fetch_quotes(get_etf_tickers())
-    if state["session"] == "morning":
-        quotes = quotes + fetch_quotes(get_etf_tickers())
     market = format_quotes_markdown(quotes)
     earn_days = 14 if state["session"] == "weekly" else 7
     earnings = format_earnings_markdown(
