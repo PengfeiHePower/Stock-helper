@@ -84,5 +84,7 @@ class CostTracker:
 def get_model_for_node(node: str) -> dict[str, Any]:
     cfg = load_yaml("models.yaml")
     tier_name = cfg.get("node_models", {}).get(node, "l2")
-    tier = cfg["tiers"][tier_name]
+    tier = dict(cfg["tiers"][tier_name])
+    overrides = (cfg.get("node_overrides") or {}).get(node) or {}
+    tier.update(overrides)
     return {"tier": tier_name, **tier}

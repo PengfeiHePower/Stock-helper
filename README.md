@@ -237,6 +237,7 @@ Chat language matching and tone rules live in `chat_system`.
 |---------|---------|
 | `tiers.l1/l2/l3` | Models, temperature, max tokens |
 | `node_models` | Which agent node uses which tier |
+| `node_overrides` | Per-node `max_tokens` etc. (e.g. chat replies) |
 | `budget.*` | Daily brief, chat session, and monthly USD caps |
 
 ---

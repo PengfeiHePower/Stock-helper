@@ -39,6 +39,16 @@ def chat_greeting() -> str:
     return template.format(name=persona_name()).strip()
 
 
+def chat_intro_reply(lang: str) -> str:
+    """Short canned intro — no brief/news context."""
+    intros = get_persona().get("chat_intro", {})
+    if isinstance(intros, dict):
+        template = intros.get(lang) or intros.get("zh") or intros.get("en", "Hi~ I'm {name}!")
+    else:
+        template = str(intros)
+    return template.format(name=persona_name()).strip()
+
+
 _CJK_RE = re.compile(r"[\u4e00-\u9fff\u3400-\u4dbf]")
 
 

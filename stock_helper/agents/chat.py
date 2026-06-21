@@ -13,6 +13,7 @@ from stock_helper.watchlist import (
 )
 
 from stock_helper.agents.persona import (
+    chat_intro_reply,
     chat_language_instruction,
     chat_system_prompt,
     detect_chat_language,
@@ -20,6 +21,61 @@ from stock_helper.agents.persona import (
 )
 
 SYSTEM = chat_system_prompt()
+
+_INTRO_GREETINGS = frozenset(
+    {"hi", "hello", "hey", "你好", "哈喽", "嗨", "在吗", "你是谁", "who are you"}
+)
+_INTRO_PHRASES = (
+    "介绍自己",
+    "介绍一下自己",
+    "介绍一下你",
+    "介绍下自己",
+    "介绍下你",
+    "你是什么",
+    "你能做什么",
+    "你会什么",
+    "你能干嘛",
+    "你是干嘛",
+    "introduce yourself",
+    "what can you do",
+    "what are you",
+)
+_MARKET_HINTS = (
+    "市场",
+    "宏观",
+    "行业",
+    "股票",
+    "新闻",
+    "brief",
+    "watchlist",
+    "涨",
+    "跌",
+    "财报",
+    "怎么样",
+    "如何",
+    "today",
+    "outlook",
+    "analysis",
+)
+
+
+def is_meta_intro_message(message: str) -> bool:
+    """True when user wants bot identity/capabilities, not market analysis."""
+    lower = message.lower().strip()
+    compact = lower.replace(" ", "")
+
+    if any(h in lower for h in _MARKET_HINTS):
+        return False
+    if any(t in message.upper() for t in get_core_tickers()):
+        return False
+
+    if lower in _INTRO_GREETINGS or compact in _INTRO_GREETINGS:
+        return True
+    if any(p in lower or p in compact for p in _INTRO_PHRASES):
+        return True
+    if "介绍" in lower and len(message) <= 24:
+        return True
+    return False
 
 
 def route_slack_intent(message: str) -> str:
@@ -50,6 +106,14 @@ def route_slack_intent(message: str) -> str:
             "分析",
             "影响",
             "展望",
+            "市场",
+            "宏观",
+            "行业",
+            "概览",
+            "怎么样",
+            "如何",
+            "今天",
+            "聊聊",
         )
     ):
         return "slack_chat_analytical"
@@ -60,6 +124,10 @@ def slack_chat(message: str, thread_context: str = "") -> str:
     lower = message.lower().strip()
     if lower in ("watchlist", "list watchlist", "show watchlist"):
         return format_watchlist_summary()
+
+    lang = detect_chat_language(message, thread_context)
+    if is_meta_intro_message(message):
+        return chat_intro_reply(lang)
 
     tracker = reset_tracker()
     try:
@@ -78,7 +146,6 @@ def slack_chat(message: str, thread_context: str = "") -> str:
         f"- [{n.get('tickers')}] {n['headline']}" for n in news
     )
     agent_text = format_agent_tracking_lines()
-    lang = detect_chat_language(message, thread_context)
 
     user = (
         f"{chat_language_instruction(lang)}\n"

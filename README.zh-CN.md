@@ -241,6 +241,7 @@ agent_tracking:
 |------|------|
 | `tiers.l1/l2/l3` | 模型、temperature、max tokens |
 | `node_models` | 各 Agent 节点用哪一档 |
+| `node_overrides` | 按节点覆盖 `max_tokens` 等（如聊天回复） |
 | `budget.*` | 单次 brief、聊天会话、月度 USD 上限 |
 
 ---

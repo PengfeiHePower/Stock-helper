@@ -23,6 +23,27 @@ from stock_helper.outputs.brief_renderer import (
 logger = logging.getLogger(__name__)
 
 TELEGRAM_MAX_MESSAGE = 4096
+TELEGRAM_CHUNK = 3800
+
+
+def _send_chat_reply(client: TelegramClient, chat_id: str | int, reply: str) -> None:
+    """Split plain markdown first, then HTML per chunk; fallback to plain text."""
+    chunks = split_text_chunks(reply.strip(), max_len=TELEGRAM_CHUNK)
+    if not chunks:
+        return
+
+    for i, chunk in enumerate(chunks):
+        chunk_body = f"({i + 1}/{len(chunks)})\n\n{chunk}" if len(chunks) > 1 else chunk
+        html = markdown_to_telegram_html(chunk_body)
+        try:
+            client.send_message(chat_id, html, parse_mode="HTML")
+        except httpx.HTTPError as e:
+            logger.warning("HTML reply failed, retrying plain text: %s", e)
+            try:
+                client.send_message(chat_id, chunk_body)
+            except httpx.HTTPError as e2:
+                logger.warning("Failed to send reply chunk: %s", e2)
+                break
 
 
 class TelegramClient:
@@ -155,10 +176,4 @@ def run_telegram_bot() -> None:
                 f"{ctx}\nUser: {text}\nAssistant: {reply}",
             )
 
-            reply_html = markdown_to_telegram_html(reply)
-            for chunk in split_text_chunks(reply_html, max_len=TELEGRAM_MAX_MESSAGE):
-                try:
-                    client.send_message(chat_id, chunk, parse_mode="HTML")
-                except httpx.HTTPError as e:
-                    logger.warning("Failed to send reply chunk: %s", e)
-                    break
+            _send_chat_reply(client, chat_id, reply)

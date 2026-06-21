@@ -26,6 +26,15 @@ node_models:
   slack_chat_analytical: l2
   slack_chat_deep: l3
 
+# Per-node limits (merged onto tier defaults)
+node_overrides:
+  slack_chat_simple:
+    max_tokens: 2048
+  slack_chat_analytical:
+    max_tokens: 4096
+  slack_chat_deep:
+    max_tokens: 8192
+
 budget:
   daily_brief_max_usd: 1.50
   slack_session_max_usd: 0.05
