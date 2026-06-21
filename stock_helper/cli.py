@@ -40,9 +40,9 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     if args.command == "ingest":
-        from stock_helper.collectors.ingest import ingest_watchlist_news
+        from stock_helper.collectors.ingest import run_ingest
 
-        n = ingest_watchlist_news()
+        n = run_ingest("cli")
         print(f"Added {n} news items")
         return 0
 

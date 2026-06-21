@@ -68,6 +68,36 @@ def ingest_watchlist_news(days_back: int = 2) -> int:
     return added
 
 
+def run_ingest(source: str = "manual") -> int:
+    """Fetch news and record timestamp so alert polling can skip duplicate ingests."""
+    from stock_helper.storage.db import record_ingest_run
+
+    added = ingest_watchlist_news()
+    record_ingest_run(source)
+    return added
+
+
+def run_ingest_if_allowed(
+    source: str,
+    cooldown_minutes: int,
+    *,
+    force: bool = False,
+) -> int | None:
+    """Run ingest unless another source (e.g. brief) ran within cooldown_minutes."""
+    from stock_helper.storage.db import minutes_since_last_ingest, should_skip_ingest
+
+    if not force and should_skip_ingest(cooldown_minutes):
+        elapsed = minutes_since_last_ingest()
+        logger.info(
+            "Skipping ingest (%s): last run %.0f min ago (cooldown %s min)",
+            source,
+            elapsed or 0,
+            cooldown_minutes,
+        )
+        return None
+    return run_ingest(source)
+
+
 def _save_news(session, item: dict) -> bool:
     exists = (
         session.query(NewsItem)

@@ -5,7 +5,7 @@ from datetime import date, datetime, time
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from stock_helper.collectors.ingest import ingest_watchlist_news, load_news_since
+from stock_helper.collectors.ingest import load_news_since, run_ingest_if_allowed
 from stock_helper.collectors.market import fetch_quotes
 from stock_helper.config import get_settings, load_yaml, telegram_brief_configured
 from stock_helper.storage.db import AlertRecord, get_session
@@ -14,7 +14,7 @@ from stock_helper.watchlist import all_watchlist_tickers
 logger = logging.getLogger(__name__)
 
 _poll_counter = 0
-_VIX_SYMBOLS = ("VIX", "^VIX", "$VIX")
+_VIX_SYMBOL = "VIX"
 
 
 def load_alert_config() -> dict[str, Any]:
@@ -113,21 +113,15 @@ def _price_rules(cfg: dict[str, Any]) -> dict[str, dict[str, Any]]:
 def _quote_symbols(rules: dict[str, dict[str, Any]]) -> list[str]:
     symbols = set(all_watchlist_tickers(include_agent=True))
     symbols.update(rules.keys())
-    for vix_sym in _VIX_SYMBOLS:
-        if "VIX" in rules:
-            symbols.add(vix_sym)
-            break
+    if "VIX" in rules:
+        symbols.add(_VIX_SYMBOL)
     return sorted(symbols)
 
 
 def _resolve_quote(symbol: str, by_symbol: dict[str, dict]) -> dict | None:
     sym = symbol.upper()
     if sym == "VIX":
-        for alt in _VIX_SYMBOLS:
-            quote = by_symbol.get(alt.upper()) or by_symbol.get(alt)
-            if quote:
-                return quote
-        return None
+        return by_symbol.get("VIX") or by_symbol.get("^VIX")
     return by_symbol.get(sym)
 
 
@@ -249,12 +243,17 @@ def run_alert_cycle(force: bool = False) -> int:
 
     _poll_counter += 1
     ingest_every = int(cfg.get("news_ingest_every_n_polls") or 3)
+    ingest_cooldown = int(cfg.get("skip_ingest_if_ran_within_minutes") or 30)
     since = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
 
     if force or _poll_counter % ingest_every == 1:
         try:
-            added = ingest_watchlist_news()
-            if added:
+            added = run_ingest_if_allowed(
+                "alert",
+                ingest_cooldown,
+                force=force,
+            )
+            if added is not None and added:
                 logger.info("Alert ingest added %s news items", added)
         except Exception as e:
             logger.warning("Alert ingest failed: %s", e)

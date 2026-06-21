@@ -33,7 +33,7 @@ def start_scheduler():
 
     alert_cfg = load_alert_config()
     if alert_cfg.get("enabled", True):
-        interval = int(alert_cfg.get("poll_interval_minutes") or 5)
+        interval = int(alert_cfg.get("poll_interval_minutes") or 10)
         sched.add_job(
             run_alert_cycle,
             IntervalTrigger(minutes=interval),

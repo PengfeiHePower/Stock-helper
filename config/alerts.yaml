@@ -1,7 +1,15 @@
 # Real-time Telegram alerts (no LLM) — polled by scheduler during market hours
 enabled: true
-poll_interval_minutes: 5
+
+# Price quote poll interval (Finnhub /quote per symbol each cycle)
+poll_interval_minutes: 10
+
+# Run news ingest every N quote polls → 10 × 3 = 30 minutes
 news_ingest_every_n_polls: 3
+
+# Skip alert-side ingest if any ingest ran within this window (avoids doubling up
+# with scheduled briefs at 7:00 / 16:45 which already call ingest)
+skip_ingest_if_ran_within_minutes: 30
 
 market_hours:
   enabled: true

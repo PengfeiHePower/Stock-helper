@@ -84,6 +84,19 @@ class AlertRecord(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
+class SystemMeta(Base):
+    __tablename__ = "system_meta"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    value: Mapped[str] = mapped_column(Text)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+
+_LAST_INGEST_KEY = "last_ingest_at"
+
+
 _engine = None
 _Session = None
 
@@ -135,6 +148,41 @@ def save_chat_context(chat_id: str | int, context: str, max_len: int = 4000) -> 
         session.add(ChatMemory(chat_id=str(chat_id), context=trimmed))
     session.commit()
     session.close()
+
+
+def record_ingest_run(source: str = "unknown") -> None:
+    session = get_session()
+    now = datetime.utcnow()
+    row = session.get(SystemMeta, _LAST_INGEST_KEY)
+    payload = f"{now.isoformat()}|{source}"
+    if row:
+        row.value = payload
+        row.updated_at = now
+    else:
+        session.add(SystemMeta(key=_LAST_INGEST_KEY, value=payload))
+    session.commit()
+    session.close()
+
+
+def minutes_since_last_ingest() -> float | None:
+    session = get_session()
+    row = session.get(SystemMeta, _LAST_INGEST_KEY)
+    session.close()
+    if not row or not row.value:
+        return None
+    ts_str = row.value.split("|", 1)[0]
+    try:
+        last = datetime.fromisoformat(ts_str)
+    except ValueError:
+        return None
+    return (datetime.utcnow() - last).total_seconds() / 60.0
+
+
+def should_skip_ingest(cooldown_minutes: int) -> bool:
+    if cooldown_minutes <= 0:
+        return False
+    elapsed = minutes_since_last_ingest()
+    return elapsed is not None and elapsed < cooldown_minutes
 
 
 def get_session():

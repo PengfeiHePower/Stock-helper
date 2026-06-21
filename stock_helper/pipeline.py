@@ -3,7 +3,7 @@ from __future__ import annotations
 from stock_helper.agents.classify import classify_news_batch
 from stock_helper.agents.graph import run_daily_brief
 from stock_helper.agents.recommender import auto_track_recommendations
-from stock_helper.collectors.ingest import ingest_watchlist_news
+from stock_helper.collectors.ingest import run_ingest
 from stock_helper.config import get_settings, slack_configured, telegram_brief_configured
 from stock_helper.outputs.email_sender import send_brief_email
 from stock_helper.watchlist import expire_agent_tracking
@@ -17,7 +17,7 @@ def run_full_brief_pipeline(session: str = "morning") -> str:
     if expired:
         print(f"Expired {expired} agent-tracking tickers")
 
-    added = ingest_watchlist_news()
+    added = run_ingest("brief")
     print(f"Ingested {added} new news items")
 
     classified = classify_news_batch(limit=25)
