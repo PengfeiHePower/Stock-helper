@@ -234,7 +234,7 @@ def assemble_brief_markdown(
     profile = _profile(session)
     titles = profile["sections"]
     session_title = "Pre-Market Brief" if session == "morning" else "After-Hours Recap"
-    display = get_persona().get("display_name", "Saki · Stock Helper")
+    display = get_persona().get("display_name", "Moka-chan · Stock Helper")
     greeting = brief_greeting(session)
 
     sections = [

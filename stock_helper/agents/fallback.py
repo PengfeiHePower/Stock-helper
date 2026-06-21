@@ -9,7 +9,7 @@ from stock_helper.collectors.market import (
     format_earnings_markdown,
     format_quotes_markdown,
 )
-from stock_helper.agents.persona import brief_greeting, get_persona, persona_disclaimer
+from stock_helper.agents.persona import brief_greeting, get_persona, persona_disclaimer, persona_name
 from stock_helper.watchlist import get_core_tickers, list_agent_tracking
 
 
@@ -29,7 +29,7 @@ def build_template_brief(session: str) -> str:
         or "- None"
     )
 
-    display = get_persona().get("display_name", "Saki · Stock Helper")
+    display = get_persona().get("display_name", "Moka-chan · Stock Helper")
     greeting = brief_greeting(session)
 
     return f"""# {display} — template mode (no LLM keys yet~)
@@ -50,7 +50,7 @@ def build_template_brief(session: str) -> str:
 {agent_section}
 
 ## Risk
-- Template mode~ Set GOOGLE_API_KEY and ANTHROPIC_API_KEY for the full Saki experience ✨
+- Template mode~ Set GOOGLE_API_KEY and ANTHROPIC_API_KEY for the full {persona_name()} experience ✨
 
 ---
 {persona_disclaimer()}

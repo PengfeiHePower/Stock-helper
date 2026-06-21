@@ -12,16 +12,46 @@ from stock_helper.watchlist import (
     remove_agent_tracking,
 )
 
-from stock_helper.agents.persona import chat_system_prompt
+from stock_helper.agents.persona import (
+    chat_language_instruction,
+    chat_system_prompt,
+    detect_chat_language,
+    strip_chat_boilerplate,
+)
 
 SYSTEM = chat_system_prompt()
 
 
 def route_slack_intent(message: str) -> str:
     lower = message.lower()
-    if any(k in lower for k in ("deep", "detailed", "compare", "portfolio", "risk")):
+    if any(
+        k in lower
+        for k in (
+            "deep",
+            "detailed",
+            "compare",
+            "portfolio",
+            "risk",
+            "详细",
+            "对比",
+            "持仓",
+            "风险",
+        )
+    ):
         return "slack_chat_deep"
-    if any(k in lower for k in ("why", "analysis", "impact", "outlook")):
+    if any(
+        k in lower
+        for k in (
+            "why",
+            "analysis",
+            "impact",
+            "outlook",
+            "为什么",
+            "分析",
+            "影响",
+            "展望",
+        )
+    ):
         return "slack_chat_analytical"
     return "slack_chat_simple"
 
@@ -48,8 +78,10 @@ def slack_chat(message: str, thread_context: str = "") -> str:
         f"- [{n.get('tickers')}] {n['headline']}" for n in news
     )
     agent_text = format_agent_tracking_lines()
+    lang = detect_chat_language(message, thread_context)
 
     user = (
+        f"{chat_language_instruction(lang)}\n"
         f"User message: {message}\n\n"
         f"Thread context:\n{thread_context or 'none'}\n\n"
         f"Core watchlist: {', '.join(get_core_tickers())}\n\n"
@@ -58,7 +90,8 @@ def slack_chat(message: str, thread_context: str = "") -> str:
         f"Recent headlines:\n{news_text}"
     )
     try:
-        return invoke_node_llm(node, SYSTEM, user, tracker)
+        reply = invoke_node_llm(node, SYSTEM, user, tracker)
+        return strip_chat_boilerplate(reply)
     except (BudgetExceeded, LLMNotConfigured) as e:
         return str(e) if str(e) else (
             "LLM not configured. Set GOOGLE_API_KEY and ANTHROPIC_API_KEY in .env"

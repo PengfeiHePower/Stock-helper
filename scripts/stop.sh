@@ -25,8 +25,8 @@ stop_pidfile() {
 stop_pidfile schedule
 stop_pidfile telegram
 
-# Fallback: kill any leftover processes started from this project
-pkill -f "$ROOT.*stock-helper schedule" 2>/dev/null || true
-pkill -f "$ROOT.*stock-helper telegram" 2>/dev/null || true
+# Kill any leftover workers (pkill must match the real cmdline, not project path)
+pkill -f "stock-helper schedule" 2>/dev/null || true
+pkill -f "stock-helper telegram" 2>/dev/null || true
 
 echo "done"

@@ -17,6 +17,21 @@ fi
 STOCK_HELPER="$STOCK_HELPER_BIN/stock-helper"
 mkdir -p "$ROOT/logs"
 
+# On NFS, deleting logs while a process is running leaves .nfs* stubs — stop orphans first.
+if pgrep -f "stock-helper schedule" >/dev/null 2>&1 || pgrep -f "stock-helper telegram" >/dev/null 2>&1; then
+  if [[ -f "$ROOT/logs/schedule.pid" ]] && kill -0 "$(cat "$ROOT/logs/schedule.pid")" 2>/dev/null \
+     && [[ -f "$ROOT/logs/telegram.pid" ]] && kill -0 "$(cat "$ROOT/logs/telegram.pid")" 2>/dev/null; then
+    echo "schedule + telegram already running"
+    echo "Stop first: $ROOT/scripts/stop.sh"
+    exit 0
+  fi
+  echo "Cleaning up orphaned stock-helper processes..."
+  pkill -f "stock-helper schedule" 2>/dev/null || true
+  pkill -f "stock-helper telegram" 2>/dev/null || true
+  rm -f "$ROOT/logs/schedule.pid" "$ROOT/logs/telegram.pid"
+  sleep 1
+fi
+
 if [[ ! -x "$STOCK_HELPER" ]]; then
   echo "stock-helper not found. Install with: conda activate stock && pip install -e ."
   exit 1

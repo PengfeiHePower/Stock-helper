@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import httpx
 
+from stock_helper.agents.persona import persona_name
 from stock_helper.config import get_settings
 from stock_helper.outputs.brief_renderer import render_email
 
@@ -11,9 +12,8 @@ def send_brief_email(brief_md: str, session: str) -> bool:
     if not settings.resend_api_key or not settings.email_to:
         return False
 
-    subject = (
-        f"Saki · {'Pre-Market' if session == 'morning' else 'After-Hours Recap'}"
-    )
+    session_label = "Pre-Market" if session == "morning" else "After-Hours Recap"
+    subject = f"{persona_name()} · {session_label}"
     _, html = render_email(brief_md, session)
 
     payload = {

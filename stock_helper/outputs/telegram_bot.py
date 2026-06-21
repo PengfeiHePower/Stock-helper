@@ -12,6 +12,7 @@ from stock_helper.agents.chat import (
     slack_chat,
 )
 from stock_helper.agents.persona import chat_greeting
+from stock_helper.config import get_settings
 from stock_helper.outputs.brief_renderer import (
     brief_to_telegram_messages,
     markdown_to_telegram_html,
@@ -81,9 +82,7 @@ Commands~
 
 Try asking:
 • NVDA news today?
-• Why is macro score negative?
-
-Not investment advice, okay? ✨"""
+• Why is macro score negative?"""
 
 
 def _handle_command(text: str) -> str | None:
