@@ -12,10 +12,11 @@ from stock_helper.agents.llm import LLMNotConfigured, invoke_json_node, invoke_n
 from stock_helper.collectors.fred import FREDClient
 from stock_helper.collectors.ingest import load_recent_news
 from stock_helper.collectors.market import (
-    fetch_core_quotes,
+    fetch_quotes,
     fetch_upcoming_earnings,
     format_earnings_markdown,
     format_quotes_markdown,
+    get_etf_tickers,
 )
 from stock_helper.config import has_llm_keys as config_has_llm
 from stock_helper.storage.db import BriefRecord, get_session
@@ -42,16 +43,87 @@ SYSTEM = (
     "and never give guaranteed buy/sell advice. Output concise markdown."
 )
 
+SESSION_PROFILES = {
+    "morning": {
+        "label": "Pre-Market Brief (before open)",
+        "macro_task": (
+            "Write a forward-looking macro backdrop for TODAY's US cash session. "
+            "What headwinds/tailwinds should traders watch at the open?"
+        ),
+        "sector_task": (
+            "Identify 3 sector themes to WATCH TODAY before/at the open. "
+            "Format as markdown bullets: (+/-/neutral), catalyst, and why it matters today."
+        ),
+        "stock_task": (
+            "Pre-market watchlist mode. For each ticker: (1) today's main catalyst or event, "
+            "(2) why it belongs on today's focus list, (3) confidence 0-1, (4) horizon intraday/short. "
+            "Mention relevant sector ETFs when helpful (e.g. QQQ, SMH, XLF, SPY). "
+            "Max 80 words per ticker. Use ### TICKER headers."
+        ),
+        "risk_task": (
+            "List what could invalidate today's watchlist: macro shocks, binary events, "
+            "overconfidence, or missing data. Forward-looking bullets for today's session."
+        ),
+        "sections": {
+            "market": "Pre-Market Snapshot",
+            "earnings": "Earnings & Events Today",
+            "macro": "Macro Backdrop for Today",
+            "sectors": "Sectors to Watch",
+            "stocks": "Today's Focus — Stocks & ETFs",
+            "agent": "Also on Radar",
+            "risk": "Today's Risk Flags",
+        },
+    },
+    "close": {
+        "label": "After-Hours Recap (post close)",
+        "macro_task": (
+            "Summarize how the macro environment shaped TODAY's session. "
+            "Note any late-day or after-hours macro developments."
+        ),
+        "sector_task": (
+            "Recap sector rotation TODAY: which sectors led/lagged and why. "
+            "Format as markdown bullets with (+/-/neutral) and one-line attribution."
+        ),
+        "stock_task": (
+            "End-of-day recap mode. For each ticker: (1) what happened today (news + price action), "
+            "(2) attribution — why it moved, (3) confidence 0-1, (4) what to carry into tomorrow. "
+            "Reference today's % change when inferable from context. Max 80 words per ticker. "
+            "Use ### TICKER headers."
+        ),
+        "risk_task": (
+            "Recap surprises vs expectations: contradictions, narrative shifts, or gaps in today's story. "
+            "What risks remain for tomorrow?"
+        ),
+        "sections": {
+            "market": "Closing Snapshot",
+            "earnings": "Earnings This Week",
+            "macro": "Macro — Today's Take",
+            "sectors": "Sector Recap",
+            "stocks": "Stock Recap & Attribution",
+            "agent": "Agent Tracking — Today",
+            "risk": "Surprises & Remaining Risks",
+        },
+    },
+}
+
+
+def _profile(session: str) -> dict:
+    return SESSION_PROFILES.get(session, SESSION_PROFILES["morning"])
+
 
 def collect_context(state: BriefState) -> dict:
     news = load_recent_news(limit=60)
-    quotes = format_quotes_markdown(fetch_core_quotes())
+    quotes = fetch_quotes(get_core_tickers())
+    if state["session"] == "morning":
+        quotes = quotes + fetch_quotes(get_etf_tickers())
+    market = format_quotes_markdown(quotes)
     earnings = format_earnings_markdown(fetch_upcoming_earnings())
-    return {"news": news, "market": quotes, "earnings": earnings}
+    return {"news": news, "market": market, "earnings": earnings}
 
 
 def run_macro(state: BriefState) -> dict:
     tracker = get_active_tracker()
+    profile = _profile(state["session"])
     fred = FREDClient()
     macro_data = fred.macro_snapshot()
     macro_text = "\n".join(
@@ -60,8 +132,9 @@ def run_macro(state: BriefState) -> dict:
     ) or "- FRED API key not set; infer macro tone from headlines only."
     headlines = "\n".join(f"- {n['headline']}" for n in state["news"][:15])
     user = (
+        f"Session: {state['session']} — {profile['label']}\n\n"
         f"Macro data:\n{macro_text}\n\nHeadlines:\n{headlines}\n\n"
-        "Write a macro environment paragraph and score from -1 (bearish) to +1 (bullish). "
+        f"{profile['macro_task']} "
         'Return JSON: {"macro_score": float, "paragraph": string}'
     )
     result = invoke_json_node("macro_agent", SYSTEM, user, tracker)
@@ -76,13 +149,13 @@ def run_macro(state: BriefState) -> dict:
 
 def run_sector(state: BriefState) -> dict:
     tracker = get_active_tracker()
+    profile = _profile(state["session"])
     headlines = "\n".join(
         f"- [{n.get('tickers')}] {n['headline']}" for n in state["news"][:25]
     )
     user = (
-        "From these headlines, identify 3 sector themes for US equities today. "
-        "Format as markdown bullets with (+/-/neutral) and one-line catalyst.\n\n"
-        f"{headlines}"
+        f"Session: {state['session']} — {profile['label']}\n\n"
+        f"{profile['sector_task']}\n\n{headlines}"
     )
     text = invoke_node_llm("sector_agent", SYSTEM, user, tracker)
     return {"sectors": text}
@@ -103,9 +176,8 @@ def run_stocks(state: BriefState) -> dict:
         lines = by_ticker[t][:3] or ["No major headlines in cache."]
         blocks.append(f"### {t}\n" + "\n".join(f"- {x}" for x in lines))
     user = (
-        "Expand each ticker: event, impact, confidence 0-1, horizon short/mid. "
-        "Max 80 words per ticker. Use ### TICKER headers. Finish every ticker block completely.\n\n"
-        + "\n\n".join(blocks)
+        f"Session: {state['session']} — {_profile(state['session'])['label']}\n\n"
+        f"{_profile(state['session'])['stock_task']}\n\n" + "\n\n".join(blocks)
     )
     text = invoke_node_llm("summarize_stock", SYSTEM, user, tracker)
     return {"stocks": text}
@@ -125,12 +197,14 @@ def run_agent_picks(state: BriefState) -> dict:
 
 def run_risk(state: BriefState) -> dict:
     tracker = get_active_tracker()
+    profile = _profile(state["session"])
     user = (
+        f"Session: {state['session']} — {profile['label']}\n\n"
         f"Macro score: {state.get('macro_score', 0)}\n\n"
         f"Macro:\n{state.get('macro', '')}\n\n"
         f"Sectors:\n{state.get('sectors', '')}\n\n"
         f"Stocks:\n{state.get('stocks', '')}\n\n"
-        "List conflicts, overconfidence, or missing data as markdown bullets."
+        f"{profile['risk_task']}"
     )
     text = invoke_node_llm("risk_agent", SYSTEM, user, tracker)
     return {"risk": text}
@@ -154,29 +228,33 @@ def run_final_brief(state: BriefState) -> dict:
 def assemble_brief_markdown(
     state: BriefState, today: str, session: str, macro_score: float
 ) -> str:
+    profile = _profile(session)
+    titles = profile["sections"]
+    session_title = "Pre-Market Brief" if session == "morning" else "After-Hours Recap"
+
     sections = [
-        "# Stock Helper Daily Brief",
-        f"**Date:** {today} · **Session:** {session} · **Macro score:** {macro_score:+.2f}",
+        f"# Stock Helper — {session_title}",
+        f"**Date:** {today} · **Session:** {profile['label']} · **Macro score:** {macro_score:+.2f}",
         "",
-        "## Market Snapshot",
+        f"## {titles['market']}",
         state.get("market", "").strip() or "_No quote data._",
         "",
-        "## Earnings This Week",
+        f"## {titles['earnings']}",
         state.get("earnings", "").strip() or "_No upcoming earnings._",
         "",
-        "## Macro Environment",
+        f"## {titles['macro']}",
         state.get("macro", "").strip() or "_No macro analysis._",
         "",
-        "## Sector Themes",
+        f"## {titles['sectors']}",
         state.get("sectors", "").strip() or "_No sector themes._",
         "",
-        "## Core Watchlist",
+        f"## {titles['stocks']}",
         state.get("stocks", "").strip() or "_No stock analysis._",
         "",
-        "## Agent Tracking",
+        f"## {titles['agent']}",
         state.get("agent_picks", "").strip() or "_None._",
         "",
-        "## Risk & Conflicts",
+        f"## {titles['risk']}",
         state.get("risk", "").strip() or "_No risk flags._",
         "",
         "---",

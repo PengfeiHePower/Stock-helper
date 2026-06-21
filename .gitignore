@@ -13,6 +13,7 @@ data/
 *.sqlite3
 logs/
 *.log
+*.pid
 
 # --- Python ---
 __pycache__/

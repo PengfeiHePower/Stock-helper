@@ -4,13 +4,14 @@ from datetime import date, timedelta
 from typing import Any
 
 from stock_helper.collectors.finnhub import FinnhubClient
+from stock_helper.config import load_yaml
 from stock_helper.watchlist import get_core_tickers
 
 
-def fetch_core_quotes() -> list[dict[str, Any]]:
+def fetch_quotes(symbols: list[str]) -> list[dict[str, Any]]:
     client = FinnhubClient()
     quotes: list[dict[str, Any]] = []
-    for symbol in get_core_tickers():
+    for symbol in symbols:
         q = client.quote(symbol)
         if not q or q.get("c") is None:
             continue
@@ -26,6 +27,14 @@ def fetch_core_quotes() -> list[dict[str, Any]]:
             }
         )
     return quotes
+
+
+def fetch_core_quotes() -> list[dict[str, Any]]:
+    return fetch_quotes(get_core_tickers())
+
+
+def get_etf_tickers() -> list[str]:
+    return list(load_yaml("watchlist.yaml").get("etfs") or [])
 
 
 def format_quotes_markdown(quotes: list[dict[str, Any]]) -> str:

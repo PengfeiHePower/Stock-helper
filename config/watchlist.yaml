@@ -21,6 +21,11 @@ lists:
     - PG
     - KO
 
+  etfs:
+    - SPY
+    - QQQ
+    - SMH
+
 agent_tracking:
   enabled: true
   max_size: 15

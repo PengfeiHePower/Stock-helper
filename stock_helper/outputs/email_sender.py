@@ -11,7 +11,9 @@ def send_brief_email(brief_md: str, session: str) -> bool:
     if not settings.resend_api_key or not settings.email_to:
         return False
 
-    subject = f"Stock Helper Brief — {session}"
+    subject = (
+        f"Stock Helper — {'Pre-Market' if session == 'morning' else 'After-Hours Recap'}"
+    )
     _, html = render_email(brief_md, session)
 
     payload = {

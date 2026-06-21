@@ -12,7 +12,11 @@ from stock_helper.agents.chat import (
     slack_chat,
 )
 from stock_helper.config import get_settings
-from stock_helper.outputs.brief_renderer import split_text_chunks
+from stock_helper.outputs.brief_renderer import (
+    brief_to_telegram_messages,
+    markdown_to_telegram_html,
+    split_text_chunks,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -61,12 +65,10 @@ def post_brief_to_telegram(brief_md: str, session: str) -> None:
 
     client = TelegramClient()
     chat_id = settings.telegram_chat_id
-    header = f"📈 Stock Helper Daily Brief ({session})\n{'─' * 32}\n\n"
-    chunks = split_text_chunks(brief_md, max_len=TELEGRAM_MAX_MESSAGE - len(header) - 10)
+    messages = brief_to_telegram_messages(brief_md, session)
 
-    for i, chunk in enumerate(chunks):
-        prefix = header if i == 0 else f"(continued {i + 1}/{len(chunks)})\n\n"
-        client.send_message(chat_id, prefix + chunk)
+    for msg in messages:
+        client.send_message(chat_id, msg, parse_mode="HTML")
 
 
 HELP_TEXT = """Stock Helper — US equity assistant
@@ -151,9 +153,10 @@ def run_telegram_bot() -> None:
             reply = slack_chat(text, thread_context=ctx)
             chat_memory[chat_id] = f"{ctx}\nUser: {text}\nAssistant: {reply}"[-4000:]
 
-            for chunk in split_text_chunks(reply, max_len=TELEGRAM_MAX_MESSAGE):
+            reply_html = markdown_to_telegram_html(reply)
+            for chunk in split_text_chunks(reply_html, max_len=TELEGRAM_MAX_MESSAGE):
                 try:
-                    client.send_message(chat_id, chunk)
+                    client.send_message(chat_id, chunk, parse_mode="HTML")
                 except httpx.HTTPError as e:
                     logger.warning("Failed to send reply chunk: %s", e)
                     break

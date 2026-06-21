@@ -40,8 +40,24 @@ cp .env.example .env
 ```bash
 stock-helper status
 stock-helper brief --session morning
-stock-helper telegram          # conversational bot (keep running)
-stock-helper schedule          # timed brief → email + telegram
+stock-helper brief --session close
+```
+
+### Run schedule + Telegram bot (background)
+
+```bash
+./scripts/start.sh      # start both
+./scripts/status.sh     # check processes + API config
+./scripts/stop.sh       # stop both
+```
+
+Logs: `logs/schedule.log`, `logs/telegram.log`
+
+Or run manually in tmux:
+
+```bash
+stock-helper schedule          # daily brief at 7:00 & 16:45 ET
+stock-helper telegram          # conversational bot
 ```
 
 ## Telegram setup

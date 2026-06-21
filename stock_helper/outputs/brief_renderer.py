@@ -85,6 +85,193 @@ def _email_safe_tables(html: str) -> str:
     return html
 
 
+def _escape_telegram_html(text: str) -> str:
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def _inline_md_to_telegram_html(text: str) -> str:
+    text = _escape_telegram_html(text)
+    text = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", text)
+    text = re.sub(r"(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)", r"<i>\1</i>", text)
+    return text
+
+
+SECTION_EMOJI = {
+    "market snapshot": "📊",
+    "pre-market": "📊",
+    "closing snapshot": "📊",
+    "earnings": "📅",
+    "macro": "🌍",
+    "sector": "🏭",
+    "watchlist": "📋",
+    "focus": "🎯",
+    "recap": "📝",
+    "agent tracking": "🤖",
+    "also on radar": "🤖",
+    "risk": "⚠️",
+}
+
+
+def _section_emoji(title: str) -> str:
+    lower = title.lower()
+    for key, emoji in SECTION_EMOJI.items():
+        if key in lower:
+            return emoji
+    return "•"
+
+
+def _is_table_line(line: str) -> bool:
+    s = line.strip()
+    return s.startswith("|") and s.endswith("|") and s.count("|") >= 2
+
+
+def _parse_table_row(line: str) -> list[str]:
+    return [c.strip() for c in line.strip().strip("|").split("|")]
+
+
+def _is_table_separator(cells: list[str]) -> bool:
+    return bool(cells) and all(re.fullmatch(r":?-+:?", c) for c in cells if c)
+
+
+def _format_table_html(rows: list[list[str]]) -> str:
+    if len(rows) < 2:
+        return ""
+    header = rows[0]
+    body_rows = [r for r in rows[1:] if not _is_table_separator(r)]
+    lines: list[str] = []
+
+    if header and header[0].lower() in ("ticker", "symbol"):
+        for row in body_rows:
+            if len(row) >= 3:
+                ticker, price, chg = row[0], row[1], row[2]
+                if chg.strip().startswith("+"):
+                    sign = "🟢"
+                elif chg.strip().startswith("-"):
+                    sign = "🔴"
+                else:
+                    sign = "⚪"
+                lines.append(
+                    f"{sign} <b>{_escape_telegram_html(ticker)}</b>  {price}  {chg}"
+                )
+            elif len(row) >= 2:
+                lines.append(f"• <b>{_escape_telegram_html(row[0])}</b>  {row[1]}")
+        return "\n".join(lines)
+
+    for row in body_rows:
+        if not row:
+            continue
+        if len(row) >= 2:
+            lines.append(
+                "• " + "  ·  ".join(_inline_md_to_telegram_html(c) for c in row)
+            )
+        else:
+            lines.append("• " + _inline_md_to_telegram_html(row[0]))
+    return "\n".join(lines)
+
+
+def markdown_to_telegram_html(md: str) -> str:
+    """Convert brief markdown to Telegram HTML (no raw pipe tables)."""
+    lines = md.splitlines()
+    out: list[str] = []
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        stripped = line.strip()
+
+        if not stripped:
+            i += 1
+            continue
+
+        if stripped == "---":
+            out.append("")
+            i += 1
+            continue
+
+        if _is_table_line(stripped):
+            table_rows: list[list[str]] = []
+            while i < len(lines) and _is_table_line(lines[i].strip()):
+                table_rows.append(_parse_table_row(lines[i]))
+                i += 1
+            formatted = _format_table_html(table_rows)
+            if formatted:
+                out.append(formatted)
+            continue
+
+        if stripped.startswith("# "):
+            out.append(f"📈 <b>{_escape_telegram_html(stripped[2:].strip())}</b>")
+            i += 1
+            continue
+
+        if stripped.startswith("## "):
+            title = stripped[3:].strip()
+            emoji = _section_emoji(title)
+            out.append(f"\n{emoji} <b>{_inline_md_to_telegram_html(title)}</b>")
+            i += 1
+            continue
+
+        if stripped.startswith("### "):
+            out.append(f"\n<b>{_inline_md_to_telegram_html(stripped[4:].strip())}</b>")
+            i += 1
+            continue
+
+        if stripped.startswith("- "):
+            out.append("• " + _inline_md_to_telegram_html(stripped[2:]))
+            i += 1
+            continue
+
+        if stripped.startswith("*") and stripped.endswith("*") and not stripped.startswith("**"):
+            out.append(f"<i>{_inline_md_to_telegram_html(stripped.strip('*'))}</i>")
+            i += 1
+            continue
+
+        out.append(_inline_md_to_telegram_html(stripped))
+        i += 1
+
+    return "\n".join(out).strip()
+
+
+def brief_to_telegram_messages(brief_md: str, session: str) -> list[str]:
+    """Split brief into Telegram HTML messages (section-aware)."""
+    html = markdown_to_telegram_html(brief_md)
+    html = html.replace(
+        "📈 <b>Stock Helper Daily Brief</b>",
+        f"📈 <b>Stock Helper Daily Brief</b>\n<i>Session: {_escape_telegram_html(session)}</i>",
+        1,
+    )
+
+    # Split on section emoji headers
+    parts = re.split(r"(?=\n[📊📅🌍🏭📋🤖⚠️])", html)
+    parts = [p.strip() for p in parts if p.strip()]
+    if not parts:
+        return [html[:4096]]
+
+    messages: list[str] = []
+    buf = ""
+    max_len = 4000
+    for part in parts:
+        candidate = f"{buf}\n\n{part}".strip() if buf else part
+        if len(candidate) <= max_len:
+            buf = candidate
+        else:
+            if buf:
+                messages.append(buf)
+            if len(part) <= max_len:
+                buf = part
+            else:
+                messages.extend(split_text_chunks(part, max_len=max_len))
+                buf = ""
+    if buf:
+        messages.append(buf)
+
+    if len(messages) > 1:
+        total = len(messages)
+        messages = [
+            (f"<i>({i + 1}/{total})</i>\n\n{m}" if i > 0 else m)
+            for i, m in enumerate(messages)
+        ]
+    return messages
+
+
 def render_email(brief_md: str, session: str) -> tuple[str, str]:
     subtitle = f"Session: {session}"
     body_html = markdown_to_html(brief_md)
