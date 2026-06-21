@@ -50,6 +50,11 @@ class FinnhubClient:
             params["symbol"] = symbol
         return self._get("/calendar/earnings", params) or {"earningsCalendar": []}
 
+    def ipo_calendar(self, from_date: str, to_date: str) -> dict:
+        return self._get(
+            "/calendar/ipo", {"from": from_date, "to": to_date}
+        ) or {"ipoCalendar": []}
+
 
 def normalize_finnhub_news(raw: dict, symbol: str | None = None) -> dict:
     ts = raw.get("datetime")

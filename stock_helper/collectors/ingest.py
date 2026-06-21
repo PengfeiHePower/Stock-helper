@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import time
+from datetime import datetime
 
 from stock_helper.collectors.finnhub import FinnhubClient, normalize_finnhub_news
 from stock_helper.collectors.sec_edgar import SECEdgarClient, TICKER_CIK
@@ -105,6 +106,32 @@ def load_recent_news(limit: int = 80, ticker: str | None = None) -> list[dict]:
     )
     out = [
         {
+            "headline": r.headline,
+            "summary": r.summary or "",
+            "source": r.source,
+            "tickers": r.tickers,
+            "url": r.url,
+            "event_type": r.event_type,
+            "sentiment": r.sentiment,
+        }
+        for r in rows
+    ]
+    session.close()
+    return out
+
+
+def load_news_since(since: datetime, limit: int = 30) -> list[dict]:
+    session = get_session()
+    rows = (
+        session.query(NewsItem)
+        .filter(NewsItem.created_at > since)
+        .order_by(NewsItem.published_at.desc().nullslast(), NewsItem.id.desc())
+        .limit(limit)
+        .all()
+    )
+    out = [
+        {
+            "external_id": r.external_id,
             "headline": r.headline,
             "summary": r.summary or "",
             "source": r.source,

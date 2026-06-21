@@ -101,6 +101,8 @@ SECTION_EMOJI = {
     "pre-market": "📊",
     "closing snapshot": "📊",
     "earnings": "📅",
+    "ipo": "🚀",
+    "star ipo": "🚀",
     "macro": "🌍",
     "sector": "🏭",
     "watchlist": "📋",
@@ -108,6 +110,10 @@ SECTION_EMOJI = {
     "recap": "📝",
     "agent tracking": "🤖",
     "also on radar": "🤖",
+    "since pre-market": "🔄",
+    "macro & tracking": "📈",
+    "this week": "📈",
+    "morning vs reality": "🔄",
     "risk": "⚠️",
 }
 

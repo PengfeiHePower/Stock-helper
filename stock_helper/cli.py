@@ -17,7 +17,7 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("status", help="Show config and database status")
 
     p_brief = sub.add_parser("brief", help="Run daily brief pipeline")
-    p_brief.add_argument("--session", choices=["morning", "close"], default="morning")
+    p_brief.add_argument("--session", choices=["morning", "close", "weekly"], default="morning")
 
     p_wl = sub.add_parser("watchlist", help="Manage agent tracking list")
     wl_sub = p_wl.add_subparsers(dest="wl_action")
@@ -29,6 +29,7 @@ def main(argv: list[str] | None = None) -> int:
     p_recommend = wl_sub.add_parser("recommend", help="Show or apply agent recommendations")
     p_recommend.add_argument("--apply", action="store_true", help="Auto-add recommendations")
 
+    sub.add_parser("alerts", help="Run one alert poll cycle (news + price)")
     sub.add_parser("schedule", help="Start scheduled brief jobs (blocking)")
     sub.add_parser("slack", help="Start Slack bot (Socket Mode)")
     sub.add_parser("telegram", help="Start Telegram bot (long polling)")
@@ -123,6 +124,13 @@ def main(argv: list[str] | None = None) -> int:
 
         brief = run_full_brief_pipeline(session=args.session)
         print(brief)
+        return 0
+
+    if args.command == "alerts":
+        from stock_helper.alerts.engine import run_alert_cycle
+
+        sent = run_alert_cycle(force=True)
+        print(f"Sent {sent} alert(s)")
         return 0
 
     if args.command == "schedule":

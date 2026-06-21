@@ -12,7 +12,12 @@ def send_brief_email(brief_md: str, session: str) -> bool:
     if not settings.resend_api_key or not settings.email_to:
         return False
 
-    session_label = "Pre-Market" if session == "morning" else "After-Hours Recap"
+    labels = {
+        "morning": "Pre-Market",
+        "close": "After-Hours Recap",
+        "weekly": "Weekly Wrap",
+    }
+    session_label = labels.get(session, "Brief")
     subject = f"{persona_name()} · {session_label}"
     _, html = render_email(brief_md, session)
 

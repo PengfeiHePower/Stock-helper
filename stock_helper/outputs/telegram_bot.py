@@ -13,6 +13,7 @@ from stock_helper.agents.chat import (
 )
 from stock_helper.agents.persona import chat_greeting
 from stock_helper.config import get_settings
+from stock_helper.storage.db import get_chat_context, save_chat_context
 from stock_helper.outputs.brief_renderer import (
     brief_to_telegram_messages,
     markdown_to_telegram_html,
@@ -110,7 +111,6 @@ def run_telegram_bot() -> None:
         raise RuntimeError("TELEGRAM_BOT_TOKEN not configured")
 
     client = TelegramClient()
-    chat_memory: dict[int, str] = {}
     offset: int | None = None
 
     print("Telegram bot running (Ctrl+C to stop)...")
@@ -148,9 +148,12 @@ def run_telegram_bot() -> None:
                     logger.warning("Failed to send command reply: %s", e)
                 continue
 
-            ctx = chat_memory.get(chat_id, "")
+            ctx = get_chat_context(chat_id)
             reply = slack_chat(text, thread_context=ctx)
-            chat_memory[chat_id] = f"{ctx}\nUser: {text}\nAssistant: {reply}"[-4000:]
+            save_chat_context(
+                chat_id,
+                f"{ctx}\nUser: {text}\nAssistant: {reply}",
+            )
 
             reply_html = markdown_to_telegram_html(reply)
             for chunk in split_text_chunks(reply_html, max_len=TELEGRAM_MAX_MESSAGE):

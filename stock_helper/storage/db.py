@@ -4,7 +4,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from sqlalchemy import DateTime, Float, String, Text, create_engine
+from sqlalchemy import DateTime, Float, String, Text, create_engine, inspect, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 
 from stock_helper.config import get_settings
@@ -38,7 +38,18 @@ class BriefRecord(Base):
     session: Mapped[str] = mapped_column(String(32))
     markdown: Mapped[str] = mapped_column(Text)
     macro_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    snapshot_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class ChatMemory(Base):
+    __tablename__ = "chat_memory"
+
+    chat_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    context: Mapped[str] = mapped_column(Text, default="")
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
 
 
 class AgentTracking(Base):
@@ -63,6 +74,16 @@ class CostLog(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
+class AlertRecord(Base):
+    __tablename__ = "alert_records"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    dedupe_key: Mapped[str] = mapped_column(String(160), unique=True, index=True)
+    alert_type: Mapped[str] = mapped_column(String(32))
+    message: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
 _engine = None
 _Session = None
 
@@ -76,7 +97,44 @@ def get_engine():
             Path(db_path).parent.mkdir(parents=True, exist_ok=True)
         _engine = create_engine(url, echo=False)
         Base.metadata.create_all(_engine)
+        _migrate_schema(_engine)
     return _engine
+
+
+def _migrate_schema(engine) -> None:
+    """Add columns to existing SQLite tables when models evolve."""
+    if engine.dialect.name != "sqlite":
+        return
+    insp = inspect(engine)
+    if "brief_records" in insp.get_table_names():
+        cols = {c["name"] for c in insp.get_columns("brief_records")}
+        if "snapshot_json" not in cols:
+            with engine.begin() as conn:
+                conn.execute(
+                    text("ALTER TABLE brief_records ADD COLUMN snapshot_json TEXT")
+                )
+
+
+def get_chat_context(chat_id: str | int, max_len: int = 4000) -> str:
+    session = get_session()
+    row = session.get(ChatMemory, str(chat_id))
+    session.close()
+    if not row or not row.context:
+        return ""
+    return row.context[-max_len:]
+
+
+def save_chat_context(chat_id: str | int, context: str, max_len: int = 4000) -> None:
+    trimmed = context[-max_len:]
+    session = get_session()
+    row = session.get(ChatMemory, str(chat_id))
+    if row:
+        row.context = trimmed
+        row.updated_at = datetime.utcnow()
+    else:
+        session.add(ChatMemory(chat_id=str(chat_id), context=trimmed))
+    session.commit()
+    session.close()
 
 
 def get_session():

@@ -1,0 +1,45 @@
+# Real-time Telegram alerts (no LLM) — polled by scheduler during market hours
+enabled: true
+poll_interval_minutes: 5
+news_ingest_every_n_polls: 3
+
+market_hours:
+  enabled: true
+  timezone: America/New_York
+  weekdays: [0, 1, 2, 3, 4]  # Mon–Fri
+  start: "07:00"
+  end: "20:00"
+
+news:
+  sec_forms:
+    - 8-K
+    - 10-K
+    - 10-Q
+  material_keywords:
+    - earnings
+    - acquisition
+    - merger
+    - guidance
+    - lawsuit
+    - sec investigation
+    - downgrade
+    - upgrade
+    - beat
+    - miss
+  classified_types:
+    - earnings
+    - m_and_a
+    - legal
+
+price:
+  default_move_pct: 5.0
+  rules:
+    - symbol: NVDA
+      move_pct: 3.0
+    - symbol: SPY
+      move_pct: 2.0
+    - symbol: QQQ
+      move_pct: 2.5
+    - symbol: VIX
+      move_pct: 8.0
+      direction: up

@@ -5,6 +5,9 @@ US equity personal assistant: collects news, runs LangGraph multi-agent analysis
 ## Features
 
 - **Watchlist** (`config/watchlist.yaml`): core tickers, themed lists, agent tracking
+- **Star IPO radar** (`config/ipos.yaml`): Finnhub IPO calendar + manual watch list + large-deal filter
+- **Real-time alerts** (`config/alerts.yaml`): SEC filings, material news, price moves → Telegram pings
+- **Weekly wrap**: Friday 17:30 ET brief with macro trend + sector rotation recap
 - **Collectors**: Finnhub news/quotes, SEC EDGAR filings, FRED macro (optional)
 - **LangGraph pipeline**: market snapshot → macro → sector → stocks → agent picks → risk → final brief
 - **Template fallback**: runs without LLM keys (quotes + headlines only)
@@ -42,6 +45,8 @@ cp .env.example .env
 stock-helper status
 stock-helper brief --session morning
 stock-helper brief --session close
+stock-helper brief --session weekly
+stock-helper alerts          # one-shot alert poll (test)
 ```
 
 ### Run schedule + Telegram bot (background)
@@ -57,7 +62,7 @@ Logs: `logs/schedule.log`, `logs/telegram.log`
 Or run manually in tmux:
 
 ```bash
-stock-helper schedule          # daily brief at 7:00 & 16:45 ET
+stock-helper schedule          # briefs 7:00 / 16:45 / Fri 17:30 ET + alert polling
 stock-helper telegram          # conversational bot
 ```
 

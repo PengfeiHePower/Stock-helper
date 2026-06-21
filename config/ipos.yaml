@@ -1,0 +1,18 @@
+# Notable / star IPO watch — used in daily brief
+enabled: true
+lookahead_days: 45
+
+# Auto-flag calendar IPOs at or above this total offer size (USD)
+min_deal_value_usd: 300000000
+
+# If true, show auto-flagged large deals even when not on watch list
+auto_notable: true
+
+# Manual watch — match company name or ticker (case-insensitive substring)
+watch:
+  - Stripe
+  - Databricks
+  - Shein
+  - Fanatics
+  - SpaceX
+  - OpenAI

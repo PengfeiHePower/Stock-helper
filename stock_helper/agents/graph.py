@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import json
 import operator
 from datetime import date
 from typing import Annotated, TypedDict
 
 from langgraph.graph import END, START, StateGraph
 
+from stock_helper.agents.brief_diff import build_close_session_diff
+from stock_helper.alerts.trends import build_weekly_trends_markdown
 from stock_helper.agents.cost_tracker import get_active_tracker, reset_tracker
 from stock_helper.agents.fallback import build_template_brief
 from stock_helper.agents.persona import (
@@ -20,7 +23,9 @@ from stock_helper.collectors.ingest import load_recent_news
 from stock_helper.collectors.market import (
     fetch_quotes,
     fetch_upcoming_earnings,
+    fetch_upcoming_ipos,
     format_earnings_markdown,
+    format_ipos_markdown,
     format_quotes_markdown,
     get_etf_tickers,
 )
@@ -34,11 +39,13 @@ class BriefState(TypedDict):
     news: list[dict]
     market: str
     earnings: str
+    ipos: str
     macro: str
     sectors: str
     stocks: str
     agent_picks: str
     risk: str
+    session_diff: str
     brief: str
     macro_score: float
     cost_notes: Annotated[list[str], operator.add]
@@ -69,7 +76,8 @@ SESSION_PROFILES = {
         ),
         "sections": {
             "market": "Pre-Market Snapshot",
-            "earnings": "Earnings & Events Today",
+            "earnings": "Watchlist Earnings — Today & This Week",
+            "ipos": "Star IPO Radar",
             "macro": "Macro Backdrop for Today",
             "sectors": "Sectors to Watch",
             "stocks": "Today's Focus — Stocks & ETFs",
@@ -98,13 +106,46 @@ SESSION_PROFILES = {
             "What risks remain for tomorrow?"
         ),
         "sections": {
+            "diff": "Since Pre-Market Brief",
             "market": "Closing Snapshot",
-            "earnings": "Earnings This Week",
+            "earnings": "Up Next — Tonight & Tomorrow Pre-Market",
+            "ipos": "Star IPO Radar",
             "macro": "Macro — Today's Take",
             "sectors": "Sector Recap",
             "stocks": "Stock Recap & Attribution",
             "agent": "Agent Tracking — Today",
             "risk": "Surprises & Remaining Risks",
+        },
+    },
+    "weekly": {
+        "label": "Weekly Wrap (Friday recap)",
+        "macro_task": (
+            "Summarize the WEEK's macro arc for US equities. How did the tone shift Mon→Fri? "
+            "End with a forward-looking macro score for next week."
+        ),
+        "sector_task": (
+            "Recap sector ROTATION this week: leaders, laggards, and narrative shifts. "
+            "Format as markdown bullets with (+/-/neutral)."
+        ),
+        "stock_task": (
+            "Weekly watchlist recap. For each core ticker: (1) week's key move/catalyst, "
+            "(2) attribution, (3) what to carry into next week. Max 70 words each. "
+            "Use ### TICKER headers."
+        ),
+        "risk_task": (
+            "Week's surprises plus look-ahead for NEXT week: earnings clusters, macro data, "
+            "positioning risks. Forward-looking bullets."
+        ),
+        "sections": {
+            "trends": "This Week — Macro & Tracking",
+            "market": "Weekly Performance Snapshot",
+            "earnings": "Next Week — Earnings Watch",
+            "ipos": "Star IPO Radar",
+            "macro": "Macro — Week in Review",
+            "sectors": "Sector Rotation This Week",
+            "stocks": "Watchlist Weekly Recap",
+            "agent": "Agent Tracking — This Week",
+            "risk": "Look Ahead & Risks",
         },
     },
 }
@@ -119,9 +160,16 @@ def collect_context(state: BriefState) -> dict:
     quotes = fetch_quotes(get_core_tickers())
     if state["session"] == "morning":
         quotes = quotes + fetch_quotes(get_etf_tickers())
+    if state["session"] == "morning":
+        quotes = quotes + fetch_quotes(get_etf_tickers())
     market = format_quotes_markdown(quotes)
-    earnings = format_earnings_markdown(fetch_upcoming_earnings())
-    return {"news": news, "market": market, "earnings": earnings}
+    earn_days = 14 if state["session"] == "weekly" else 7
+    earnings = format_earnings_markdown(
+        fetch_upcoming_earnings(days=earn_days),
+        session=state["session"],
+    )
+    ipos = format_ipos_markdown(fetch_upcoming_ipos(), session=state["session"])
+    return {"news": news, "market": market, "earnings": earnings, "ipos": ipos}
 
 
 def run_macro(state: BriefState) -> dict:
@@ -218,8 +266,20 @@ def run_final_brief(state: BriefState) -> dict:
     score = state.get("macro_score", 0.0)
     session = state["session"]
 
+    session_diff = ""
+    if session == "close":
+        session_diff = build_close_session_diff(
+            score,
+            state.get("market", ""),
+            state.get("stocks", ""),
+        )
+    elif session == "weekly":
+        session_diff = build_weekly_trends_markdown()
+
     # Assemble in code so the email is never cut off by LLM max_tokens.
-    text = assemble_brief_markdown(state, today, session, score)
+    text = assemble_brief_markdown(
+        {**state, "session_diff": session_diff}, today, session, score
+    )
     _save_brief(today, session, text, score)
     tracker = get_active_tracker()
     return {
@@ -233,22 +293,44 @@ def assemble_brief_markdown(
 ) -> str:
     profile = _profile(session)
     titles = profile["sections"]
-    session_title = "Pre-Market Brief" if session == "morning" else "After-Hours Recap"
+    session_titles = {
+        "morning": "Pre-Market Brief",
+        "close": "After-Hours Recap",
+        "weekly": "Weekly Wrap",
+    }
+    session_title = session_titles.get(session, "Daily Brief")
     display = get_persona().get("display_name", "Moka-chan · Stock Helper")
     greeting = brief_greeting(session)
 
     sections = [
-        f"# {display_name} — {session_title}",
+        f"# {display} — {session_title}",
         f"**Date:** {today} · **Session:** {profile['label']} · **Macro score:** {macro_score:+.2f}",
     ]
     if greeting:
         sections.extend(["", greeting, ""])
+
+    if session == "close" and titles.get("diff"):
+        sections.extend([
+            f"## {titles['diff']}",
+            state.get("session_diff", "").strip() or "_No diff available._",
+            "",
+        ])
+    if session == "weekly" and titles.get("trends"):
+        sections.extend([
+            f"## {titles['trends']}",
+            state.get("session_diff", "").strip() or "_No weekly trend data yet._",
+            "",
+        ])
+
     sections.extend([
         f"## {titles['market']}",
         state.get("market", "").strip() or "_No quote data._",
         "",
         f"## {titles['earnings']}",
         state.get("earnings", "").strip() or "_No upcoming earnings._",
+        "",
+        f"## {titles['ipos']}",
+        state.get("ipos", "").strip() or "_No notable IPOs on radar._",
         "",
         f"## {titles['macro']}",
         state.get("macro", "").strip() or "_No macro analysis._",
@@ -273,6 +355,9 @@ def assemble_brief_markdown(
 
 
 def _save_brief(brief_date: str, session: str, markdown: str, macro_score: float | None):
+    snapshot = json.dumps(
+        {"agent_tickers": [r["ticker"] for r in list_agent_tracking()]}
+    )
     db = get_session()
     db.add(
         BriefRecord(
@@ -280,6 +365,7 @@ def _save_brief(brief_date: str, session: str, markdown: str, macro_score: float
             session=session,
             markdown=markdown,
             macro_score=macro_score,
+            snapshot_json=snapshot,
         )
     )
     db.commit()
@@ -292,11 +378,13 @@ def _empty_state(session: str) -> BriefState:
         "news": [],
         "market": "",
         "earnings": "",
+        "ipos": "",
         "macro": "",
         "sectors": "",
         "stocks": "",
         "agent_picks": "",
         "risk": "",
+        "session_diff": "",
         "brief": "",
         "macro_score": 0.0,
         "cost_notes": [],

@@ -3,10 +3,14 @@ from __future__ import annotations
 from datetime import date
 
 from stock_helper.collectors.ingest import load_recent_news
+from stock_helper.agents.brief_diff import build_close_session_diff
+from stock_helper.alerts.trends import build_weekly_trends_markdown
 from stock_helper.collectors.market import (
     fetch_core_quotes,
     fetch_upcoming_earnings,
+    fetch_upcoming_ipos,
     format_earnings_markdown,
+    format_ipos_markdown,
     format_quotes_markdown,
 )
 from stock_helper.agents.persona import brief_greeting, get_persona, persona_disclaimer, persona_name
@@ -17,7 +21,11 @@ def build_template_brief(session: str) -> str:
     """Non-LLM brief when API keys are missing — still useful for testing pipeline."""
     today = date.today().isoformat()
     quotes = format_quotes_markdown(fetch_core_quotes())
-    earnings = format_earnings_markdown(fetch_upcoming_earnings())
+    earn_days = 14 if session == "weekly" else 7
+    earnings = format_earnings_markdown(
+        fetch_upcoming_earnings(days=earn_days), session=session
+    )
+    ipos = format_ipos_markdown(fetch_upcoming_ipos(), session=session)
     news = load_recent_news(limit=20)
     headlines = "\n".join(
         f"- [{n.get('tickers') or '?'}] {n['headline']}" for n in news[:15]
@@ -31,17 +39,40 @@ def build_template_brief(session: str) -> str:
 
     display = get_persona().get("display_name", "Moka-chan · Stock Helper")
     greeting = brief_greeting(session)
+    earnings_title = {
+        "close": "Up Next — Tonight & Tomorrow Pre-Market",
+        "weekly": "Next Week — Earnings Watch",
+    }.get(session, "Watchlist Earnings — Today & This Week")
+
+    diff_block = ""
+    if session == "close":
+        diff = build_close_session_diff(0.0, quotes, "")
+        diff_block = f"""
+## Since Pre-Market Brief
+{diff}
+
+"""
+    elif session == "weekly":
+        trends = build_weekly_trends_markdown()
+        diff_block = f"""
+## This Week — Macro & Tracking
+{trends}
+
+"""
 
     return f"""# {display} — template mode (no LLM keys yet~)
 **Date:** {today} | **Session:** {session}
 
 {greeting}
-
+{diff_block}
 ## Market Snapshot
 {quotes}
 
-## Earnings This Week (Core)
+## {earnings_title}
 {earnings}
+
+## Star IPO Radar
+{ipos}
 
 ## Top Headlines
 {headlines}
