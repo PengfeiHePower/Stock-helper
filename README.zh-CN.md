@@ -1,4 +1,4 @@
-# Stock Helper
+# Stock Helper (Moka-chan)
 
 [English](README.md)
 

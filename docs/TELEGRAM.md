@@ -158,6 +158,29 @@ To post briefs to a **group**:
 
 For a **channel**, add the bot as admin, use the channel chat id the same way.
 
+### Chatting in a group
+
+In groups, Moka-chan only replies when you **intentionally address it**:
+
+| How | Example |
+|-----|---------|
+| @mention | `@your_bot who are you` |
+| Reply to bot | Tap "Reply" on one of the bot's messages |
+| Command | `/start@your_bot` or `/watchlist@your_bot` |
+
+It will **not** reply to normal group chatter.
+
+**BotFather privacy mode** (default **enabled**): the bot only *receives* @mentions, replies, and commands in groups — not every message. That is expected.
+
+**Send permission:** the bot does **not** need to be admin, but it must be allowed to **send messages** in the group. If the group restricts posting to admins only, either:
+
+- Make the bot admin again (only "Post messages" is enough), or
+- Change group settings so members/bots can send messages
+
+If @mention still gets no reply, check `logs/telegram.log` for lines like `Telegram send failed` — often `not enough rights to send text messages`.
+
+**Private chat** is unchanged: message the bot directly, no @ needed.
+
 ---
 
 ## Troubleshooting
@@ -167,6 +190,8 @@ For a **channel**, add the bot as admin, use the channel chat id the same way.
 | `Unauthorized` | Wrong `TELEGRAM_BOT_TOKEN` |
 | Brief not arriving | Set `TELEGRAM_CHAT_ID`; send `/start` to bot first |
 | Bot not replying | Is `stock-helper telegram` running? |
+| Group @mention, no reply | Bot needs **send messages** permission; check `logs/telegram.log` for `send failed` |
+| Bot replies to everything in group | Fixed in code — only @mention / reply / command; restart `stock-helper telegram` |
 | `chat not found` | Wrong chat id; use `/start` to get the correct one |
 | Two bot instances | Only one `getUpdates` poll per token — stop duplicate processes |
 
