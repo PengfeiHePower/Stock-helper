@@ -72,6 +72,21 @@ def build_chat_model(node: str) -> tuple[BaseChatModel, str, str]:
     return llm, model_id, cfg["tier"]
 
 
+_CHAT_NODES = frozenset(
+    {
+        "chat_simple",
+        "chat_analytical",
+        "chat_deep",
+        "chat_router",
+        # legacy names (models.yaml pre-rename)
+        "slack_chat_simple",
+        "slack_chat_analytical",
+        "slack_chat_deep",
+        "slack_router",
+    }
+)
+
+
 def invoke_node_llm(
     node: str,
     system: str,
@@ -79,8 +94,8 @@ def invoke_node_llm(
     tracker: CostTracker | None = None,
 ) -> str:
     tracker = tracker or get_active_tracker()
-    if node.startswith("slack_"):
-        tracker.check_slack_budget()
+    if node in _CHAT_NODES or node.startswith("chat_") or node.startswith("slack_chat"):
+        tracker.check_chat_budget()
     else:
         tracker.check_brief_budget()
     llm, model_id, _ = build_chat_model(node)

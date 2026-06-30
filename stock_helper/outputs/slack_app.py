@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from stock_helper.agents.chat import handle_watchlist_command, slack_chat
+from stock_helper.agents.chat import chat_reply, handle_watchlist_command
 from stock_helper.config import get_settings
 
 
@@ -45,7 +45,7 @@ def create_slack_app():
             return
 
         ctx = thread_memory.get(thread_ts, "")
-        reply = slack_chat(user_msg, thread_context=ctx)
+        reply = chat_reply(user_msg, thread_context=ctx)
         thread_memory[thread_ts] = (
             f"{ctx}\nUser: {user_msg}\nAssistant: {reply}"[-4000:]
         )
@@ -60,7 +60,7 @@ def create_slack_app():
         if wl_reply:
             say(wl_reply)
             return
-        say(slack_chat(user_msg))
+        say(chat_reply(user_msg))
 
     app._socket_handler_cls = SocketModeHandler  # type: ignore[attr-defined]
     return app

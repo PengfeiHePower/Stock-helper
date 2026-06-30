@@ -9,7 +9,7 @@ import httpx
 from stock_helper.agents.chat import (
     format_watchlist_summary,
     handle_watchlist_command,
-    slack_chat,
+    chat_reply,
 )
 from stock_helper.agents.persona import chat_greeting
 from stock_helper.config import get_settings
@@ -166,6 +166,8 @@ Commands~
 
 Try asking:
 • NVDA news today?
+• 关注 AMD / 不再关注 TSLA
+• follow INTC / unfollow INTC
 • Why is macro score negative?"""
 
 
@@ -222,7 +224,7 @@ def _process_message(
 
     ctx = get_chat_context(chat_id)
     try:
-        reply = slack_chat(text, thread_context=ctx)
+        reply = chat_reply(text, thread_context=ctx)
     except Exception:
         logger.exception("Chat handler failed (chat=%s)", chat_id)
         _safe_send(

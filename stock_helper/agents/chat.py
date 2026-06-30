@@ -5,11 +5,9 @@ from stock_helper.agents.llm import LLMNotConfigured, invoke_node_llm
 from stock_helper.collectors.ingest import load_recent_news
 from stock_helper.storage.db import BriefRecord, get_session
 from stock_helper.watchlist import (
-    add_agent_tracking,
     all_watchlist_tickers,
     get_core_tickers,
     list_agent_tracking,
-    remove_agent_tracking,
 )
 
 from stock_helper.agents.persona import (
@@ -19,6 +17,7 @@ from stock_helper.agents.persona import (
     detect_chat_language,
     strip_chat_boilerplate,
 )
+from stock_helper.agents.watchlist_chat import handle_natural_watchlist
 
 SYSTEM = chat_system_prompt()
 
@@ -78,7 +77,7 @@ def is_meta_intro_message(message: str) -> bool:
     return False
 
 
-def route_slack_intent(message: str) -> str:
+def route_chat_intent(message: str) -> str:
     lower = message.lower()
     if any(
         k in lower
@@ -94,7 +93,7 @@ def route_slack_intent(message: str) -> str:
             "风险",
         )
     ):
-        return "slack_chat_deep"
+        return "chat_deep"
     if any(
         k in lower
         for k in (
@@ -116,26 +115,31 @@ def route_slack_intent(message: str) -> str:
             "聊聊",
         )
     ):
-        return "slack_chat_analytical"
-    return "slack_chat_simple"
+        return "chat_analytical"
+    return "chat_simple"
 
 
-def slack_chat(message: str, thread_context: str = "") -> str:
+def chat_reply(message: str, thread_context: str = "") -> str:
     lower = message.lower().strip()
+    lang = detect_chat_language(message, thread_context)
+
     if lower in ("watchlist", "list watchlist", "show watchlist"):
         return format_watchlist_summary()
 
-    lang = detect_chat_language(message, thread_context)
     if is_meta_intro_message(message):
         return chat_intro_reply(lang)
 
+    wl_reply = handle_natural_watchlist(message, lang)
+    if wl_reply:
+        return wl_reply
+
     tracker = reset_tracker()
     try:
-        tracker.check_slack_budget()
+        tracker.check_chat_budget()
     except BudgetExceeded as e:
         return str(e)
 
-    node = route_slack_intent(message)
+    node = route_chat_intent(message)
     session = get_session()
     latest = session.query(BriefRecord).order_by(BriefRecord.id.desc()).first()
     session.close()
@@ -176,7 +180,8 @@ def format_watchlist_summary() -> str:
         lines.append("*Agent tracking:*")
         for r in agent:
             lines.append(f"  • {r['ticker']} — {r['reason']}")
-    lines.append("\nCommands: `track TICKER` | `untrack TICKER`")
+    lines.append("\nChat: 关注 AMD | 不再关注 AMD | follow NVDA | unfollow TSLA")
+    lines.append("Commands: `track TICKER` | `untrack TICKER`")
     return "\n".join(lines)
 
 
@@ -192,10 +197,17 @@ def handle_watchlist_command(message: str) -> str | None:
     if len(parts) != 2:
         return None
     cmd, ticker = parts[0].lower(), parts[1].upper()
+    lang = "en"
     if cmd == "track":
-        ok, msg = add_agent_tracking(ticker, "Added via Slack")
-        return msg
+        from stock_helper.agents.watchlist_chat import _format_add_result
+        from stock_helper.watchlist import add_agent_tracking
+
+        ok, detail = add_agent_tracking(ticker, "Added via chat")
+        return _format_add_result(lang, ticker, ok, detail)
     if cmd == "untrack":
-        ok, msg = remove_agent_tracking(ticker)
-        return msg
+        from stock_helper.agents.watchlist_chat import _format_remove_result
+        from stock_helper.watchlist import remove_agent_tracking
+
+        ok, detail = remove_agent_tracking(ticker)
+        return _format_remove_result(lang, ticker, ok, detail)
     return None

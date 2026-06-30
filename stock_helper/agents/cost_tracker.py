@@ -73,11 +73,16 @@ class CostTracker:
                 f"Daily brief budget exceeded: ${self.session_spend:.4f} >= ${cap:.2f}"
             )
 
-    def check_slack_budget(self) -> None:
-        cap = float(self.budget.get("slack_session_max_usd", 0.05))
+    def check_chat_budget(self) -> None:
+        cap = float(
+            self.budget.get(
+                "chat_session_max_usd",
+                self.budget.get("slack_session_max_usd", 0.05),
+            )
+        )
         if self.session_spend >= cap:
             raise BudgetExceeded(
-                f"Slack session budget exceeded: ${self.session_spend:.4f} >= ${cap:.2f}"
+                f"Chat session budget exceeded: ${self.session_spend:.4f} >= ${cap:.2f}"
             )
 
 
