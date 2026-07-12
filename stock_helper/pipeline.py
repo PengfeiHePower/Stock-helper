@@ -5,11 +5,20 @@ from stock_helper.agents.graph import run_daily_brief
 from stock_helper.agents.recommender import auto_track_recommendations
 from stock_helper.collectors.ingest import run_ingest
 from stock_helper.config import get_settings, slack_configured, telegram_brief_configured
+from stock_helper.market_calendar import is_us_trading_day, trading_day_skip_reason
 from stock_helper.outputs.email_sender import send_brief_email
 from stock_helper.watchlist import expire_agent_tracking
 
 
-def run_full_brief_pipeline(session: str = "morning") -> str:
+def run_full_brief_pipeline(
+    session: str = "morning",
+    *,
+    require_trading_day: bool = True,
+) -> str | None:
+    if require_trading_day and not is_us_trading_day():
+        print(f"Skipping {session} brief — {trading_day_skip_reason()}")
+        return None
+
     from stock_helper.scripts.purge_agent_tracking import purge_invalid_agent_tracking
 
     purge_invalid_agent_tracking()

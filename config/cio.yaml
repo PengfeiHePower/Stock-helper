@@ -1,0 +1,373 @@
+# CIO Investment Agent — US equities only
+# Hierarchical pipeline: Regime → Theme → Industry → Stock → Portfolio → Scenario → Triggers → Monitor
+enabled: true
+version: 2
+
+default_risk_level: L2
+
+# Report output
+report:
+  languages: [zh, en]
+
+# ── Layer 1: Regime driver labels ──
+regime_drivers:
+  - growth
+  - inflation
+  - liquidity
+  - credit
+  - policy
+
+# ── Layer 2: Investment themes ──
+themes:
+  ai_infrastructure:
+    name: AI Infrastructure
+    name_zh: AI 基础设施
+    keywords: [ai, gpu, capex, hyperscaler, datacenter, nvidia, semiconductor]
+    narrative_topics: [ai, earnings]
+    momentum_etfs: [SMH, XLK, QQQ]
+    horizon: 6-12 months
+    catalyst_default: Hyperscaler capex / AI server demand
+    risk_default: Capex slowdown / valuation reset
+
+  defense_modernization:
+    name: Defense Modernization
+    name_zh: 国防现代化
+    keywords: [defense, missile, radar, satellite, pentagon, nato]
+    narrative_topics: [geopolitics]
+    momentum_etfs: [ITA, XLI]
+    horizon: 12-24 months
+    catalyst_default: Defense budget / geopolitical tension
+    risk_default: Budget cuts / peace dividend
+
+  power_grid:
+    name: Power Grid & Electrification
+    name_zh: 电网与电气化
+    keywords: [grid, utility, power, electrification, transformer, nuclear]
+    narrative_topics: [energy]
+    momentum_etfs: [XLU, XLI]
+    horizon: 12-24 months
+    catalyst_default: AI power demand / grid investment
+    risk_default: Regulatory delay / rate caps
+
+  industrial_automation:
+    name: Industrial Automation
+    name_zh: 工业自动化
+    keywords: [automation, robotics, factory, reshoring, capex]
+    narrative_topics: [industrial]
+    momentum_etfs: [XLI, SMH]
+    horizon: 6-12 months
+    catalyst_default: Reshoring / productivity capex
+    risk_default: Manufacturing slowdown
+
+  cybersecurity:
+    name: Cybersecurity
+    name_zh: 网络安全
+    keywords: [cyber, security, breach, ransomware, zero trust]
+    narrative_topics: [tech]
+    momentum_etfs: [XLK, XLC]
+    horizon: 6-12 months
+    catalyst_default: Enterprise security spend
+    risk_default: Budget scrutiny in downturn
+
+  healthcare_innovation:
+    name: Healthcare Innovation
+    name_zh: 医疗创新
+    keywords: [biotech, pharma, glp, obesity, fda, clinical]
+    narrative_topics: [healthcare]
+    momentum_etfs: [XLV]
+    horizon: 12-24 months
+    catalyst_default: Pipeline / GLP-1 ecosystem
+    risk_default: Pricing / regulatory
+
+weak_themes:
+  consumer_staples:
+    name: Consumer Staples
+    name_zh: 必需消费
+    etf: XLP
+    reason: Defensive rotation lagging in selective risk-on
+  consumer_discretionary:
+    name: Consumer Discretionary
+    name_zh: 可选消费
+    etf: XLY
+    reason: Rate-sensitive spending; narrow leadership elsewhere
+  office_reit:
+    name: Office REIT
+    name_zh: 办公地产
+    etf: XLRE
+    reason: Structural office demand headwind
+  legacy_telecom:
+    name: Legacy Telecom
+    name_zh: 传统电信
+    etf: XLC
+    reason: Capex burden / slow growth
+
+# ── Layer 3: Industries (under themes) ──
+industries:
+  # AI Infrastructure
+  gpu:
+    theme: ai_infrastructure
+    name: GPU / Accelerators
+    name_zh: GPU / 加速器
+    tickers: [NVDA, AMD]
+    etf: SMH
+  memory:
+    theme: ai_infrastructure
+    name: HBM / Memory
+    name_zh: HBM / 存储
+    tickers: [MU, NVDA]
+    etf: SMH
+  networking:
+    theme: ai_infrastructure
+    name: Networking
+    name_zh: 网络设备
+    tickers: [AVGO, ANET, CSCO]
+    etf: SMH
+  optical:
+    theme: ai_infrastructure
+    name: Optical / Interconnect
+    name_zh: 光通信
+    tickers: [AVGO, LITE, COHR]
+    etf: SMH
+  power_equipment:
+    theme: ai_infrastructure
+    name: Power Equipment
+    name_zh: 电力设备
+    tickers: [GE, ETN, VRT]
+    etf: XLI
+  cooling:
+    theme: ai_infrastructure
+    name: Datacenter Cooling
+    name_zh: 数据中心散热
+    tickers: [SMCI, VRT]
+    etf: SMH
+  datacenter_reit:
+    theme: ai_infrastructure
+    name: Datacenter REIT
+    name_zh: 数据中心 REIT
+    tickers: [EQIX, DLR]
+    etf: XLRE
+
+  # Defense Modernization
+  missile:
+    theme: defense_modernization
+    name: Missile Systems
+    name_zh: 导弹系统
+    tickers: [RTX, LMT, NOC]
+    etf: ITA
+  radar:
+    theme: defense_modernization
+    name: Radar / Sensors
+    name_zh: 雷达 / 传感
+    tickers: [RTX, LMT, GD]
+    etf: ITA
+  satellite:
+    theme: defense_modernization
+    name: Satellite / Space
+    name_zh: 卫星 / 航天
+    tickers: [LMT, RTX, BA]
+    etf: ITA
+  defense_cyber:
+    theme: defense_modernization
+    name: Defense Cyber
+    name_zh: 国防网络
+    tickers: [PLTR, LDOS]
+    etf: ITA
+  electronic_warfare:
+    theme: defense_modernization
+    name: Electronic Warfare
+    name_zh: 电子战
+    tickers: [LMT, RTX]
+    etf: ITA
+
+  # Power Grid
+  grid_equipment:
+    theme: power_grid
+    name: Grid Equipment
+    name_zh: 电网设备
+    tickers: [ETN, GE, EMR]
+    etf: XLI
+  regulated_utility:
+    theme: power_grid
+    name: Regulated Utility
+    name_zh: 公用事业
+    tickers: [NEE, DUK, SO]
+    etf: XLU
+  nuclear_power:
+    theme: power_grid
+    name: Nuclear Power
+    name_zh: 核电
+    tickers: [CEG, VST]
+    etf: XLU
+
+  # Industrial Automation
+  factory_automation:
+    theme: industrial_automation
+    name: Factory Automation
+    name_zh: 工厂自动化
+    tickers: [ROK, EMR, HON]
+    etf: XLI
+  reshoring_capex:
+    theme: industrial_automation
+    name: Reshoring / Capex
+    name_zh: 回流 / 资本开支
+    tickers: [CAT, DE, GE]
+    etf: XLI
+
+  # Cybersecurity
+  cyber_software:
+    theme: cybersecurity
+    name: Cybersecurity Software
+    name_zh: 网络安全软件
+    tickers: [CRWD, PANW, ZS, FTNT]
+    etf: XLK
+
+  # Healthcare Innovation
+  biotech:
+    theme: healthcare_innovation
+    name: Biotech / Pharma
+    name_zh: 生物科技 / 制药
+    tickers: [LLY, AMGN, UNH]
+    etf: XLV
+  medtech:
+    theme: healthcare_innovation
+    name: MedTech
+    name_zh: 医疗器械
+    tickers: [ISRG, ABT, SYK]
+    etf: XLV
+  glp1_ecosystem:
+    theme: healthcare_innovation
+    name: GLP-1 Ecosystem
+    name_zh: GLP-1 生态
+    tickers: [LLY, NVO]
+    etf: XLV
+
+  # Consumer (mostly weak-theme subdivisions)
+  retail:
+    theme: consumer_discretionary
+    name: Retail
+    name_zh: 零售
+    tickers: [COST, WMT, TGT]
+    etf: XLY
+  restaurant:
+    theme: consumer_discretionary
+    name: Restaurant
+    name_zh: 餐饮
+    tickers: [MCD, SBUX, CMG]
+    etf: XLY
+  travel:
+    theme: consumer_discretionary
+    name: Travel & Leisure
+    name_zh: 旅游休闲
+    tickers: [MAR, BKNG, DAL]
+    etf: XLY
+  luxury:
+    theme: consumer_discretionary
+    name: Luxury / Premium
+    name_zh: 奢侈品 / 高端
+    tickers: [TPR, RL, LULU]
+    etf: XLY
+  auto:
+    theme: consumer_discretionary
+    name: Auto
+    name_zh: 汽车
+    tickers: [TSLA, GM, F]
+    etf: XLY
+  home_improvement:
+    theme: consumer_discretionary
+    name: Home Improvement
+    name_zh: 家装
+    tickers: [HD, LOW]
+    etf: XLY
+  resilient_consumer:
+    theme: consumer_staples
+    name: Resilient Consumer
+    name_zh: 韧性消费
+    tickers: [COST, PG, KO]
+    etf: XLP
+
+# ── Layer 5: US-only strategic allocation ──
+allocation:
+  expansion:
+    us_equity: 55
+    bonds: 15
+    gold: 10
+    cash: 10
+    international: 0
+  recovery:
+    us_equity: 55
+    bonds: 20
+    gold: 10
+    cash: 15
+    international: 0
+  slowdown:
+    us_equity: 42
+    bonds: 28
+    gold: 12
+    cash: 18
+    international: 0
+  recession_risk:
+    us_equity: 30
+    bonds: 35
+    gold: 15
+    cash: 20
+    international: 0
+
+risk_level_tilt:
+  L1: { equity_mult: 0.75 }
+  L2: { equity_mult: 1.0 }
+  L3: { equity_mult: 1.15 }
+
+# Theme → ETF implementation map
+theme_etfs:
+  ai_infrastructure: [SMH, QQQ]
+  defense_modernization: [ITA]
+  power_grid: [XLU, XLI]
+  industrial_automation: [XLI]
+  cybersecurity: [XLK]
+  healthcare_innovation: [XLV]
+  consumer_discretionary: [XLY]
+  consumer_staples: [XLP]
+
+core_etfs: [SPY, QQQ, SMH, XLI, ITA, XLU, TLT, GLD]
+
+# ── Layer 7: If → Then triggers ──
+triggers:
+  - id: yield_spike
+    if: "10Y yield > 4.8%"
+    then: [Reduce duration, Reduce growth beta, Trim QQQ/SMH]
+    metric: ten_year_yield
+    threshold: 4.8
+    op: gt
+  - id: breadth_improves
+    if: "Breadth improves (RSP outperforms SPY)"
+    then: [Increase RSP/IWM, Reduce cash, Add small-cap tilt]
+    signal: breadth_improving
+  - id: ai_guidance_miss
+    if: "AI earnings guidance miss"
+    then: [Reduce GPU/memory sleeve, Increase cash, Trim SMH]
+    signal: ai_earnings_risk
+  - id: vix_stress
+    if: "VIX > 28"
+    then: [Raise cash 5-8%, Cut cyclicals, Add TLT/GLD]
+    metric: vix
+    threshold: 28
+    op: gt
+  - id: cpi_hot
+    if: "CPI above expectations"
+    then: [Reduce growth, Extend cash buffer, Favor quality]
+    signal: inflation_risk
+
+# ── Layer 8: Market health dimensions ──
+health_dimensions:
+  breadth: { weight: 0.22 }
+  credit: { weight: 0.20 }
+  liquidity: { weight: 0.18 }
+  valuation: { weight: 0.20 }
+  momentum: { weight: 0.20 }
+
+# Watch calendar keywords (matched against sentiment / earnings)
+watch_keywords:
+  - { event: CPI, importance: high, keywords: [cpi, inflation] }
+  - { event: Retail Sales, importance: medium, keywords: [retail sales] }
+  - { event: Fed communication, importance: high, keywords: [fed, powell, fomc] }
+  - { event: NVDA Earnings, importance: very_high, tickers: [NVDA], keywords: [nvidia, earnings] }

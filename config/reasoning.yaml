@@ -1,0 +1,53 @@
+# Market Reasoning Agent — rules & weights (Phase 2)
+enabled: true
+
+# Sub-regime tags layered on composite regime
+sub_regime:
+  late_cycle:
+    growth_labels: [firm]
+    policy_labels: [restrictive, neutral_tight]
+    inflation_labels: [elevated, moderate]
+  selective_risk_on:
+    growth_labels: [firm]
+    risk_labels: [calm, moderate]
+    breadth_signals: [narrow_rally, mixed]
+  liquidity_neutral:
+    policy_labels: [neutral_tight]
+    risk_labels: [moderate]
+
+# Layer signal thresholds
+signals:
+  macro_bullish_min_score: 1.5
+  macro_bearish_max_score: -1.0
+  breadth_narrow_threshold: -1.5
+  breadth_healthy_threshold: 0.8
+
+# Top driver weights (normalized in code)
+drivers:
+  treasury_yield: 0.25
+  inflation: 0.20
+  dominant_narrative: 0.18
+  breadth: 0.17
+  growth_vs_broad: 0.12
+  credit_risk: 0.08
+
+# Conflict levels
+conflict:
+  high_disagreement: 2   # layers on opposite sides
+  moderate_disagreement: 1
+
+# LLM thesis (optional — derived thesis is default in Phase 3)
+thesis:
+  use_llm: false
+  max_words: 80
+
+# Reader report output
+reader_report:
+  languages: [zh, en]   # zh | en | both (zh first, then ---, then en)
+
+# Hypothesis testing priors
+hypotheses:
+  rate_pressure: 0.35
+  sector_rotation: 0.22
+  profit_taking: 0.18
+  idiosyncratic: 0.12

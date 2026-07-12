@@ -93,6 +93,7 @@ def _inline_md_to_telegram_html(text: str) -> str:
     text = _escape_telegram_html(text)
     text = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", text)
     text = re.sub(r"(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)", r"<i>\1</i>", text)
+    text = re.sub(r"(?<![\w])_(.+?)_(?![\w])", r"<i>\1</i>", text)
     return text
 
 
@@ -227,6 +228,11 @@ def markdown_to_telegram_html(md: str) -> str:
 
         if stripped.startswith("*") and stripped.endswith("*") and not stripped.startswith("**"):
             out.append(f"<i>{_inline_md_to_telegram_html(stripped.strip('*'))}</i>")
+            i += 1
+            continue
+
+        if stripped.startswith("_") and stripped.endswith("_") and not stripped.startswith("__"):
+            out.append(f"<i>{_inline_md_to_telegram_html(stripped.strip('_'))}</i>")
             i += 1
             continue
 

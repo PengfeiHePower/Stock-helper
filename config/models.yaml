@@ -25,6 +25,8 @@ node_models:
   chat_simple: l1
   chat_analytical: l2
   chat_deep: l3
+  monthly_analysis: l2
+  market_reasoning: l2
 
 # Per-node limits (merged onto tier defaults)
 node_overrides:
@@ -34,6 +36,10 @@ node_overrides:
     max_tokens: 4096
   chat_deep:
     max_tokens: 8192
+  monthly_analysis:
+    max_tokens: 4096
+  market_reasoning:
+    max_tokens: 512
 
 budget:
   daily_brief_max_usd: 1.50

@@ -14,7 +14,7 @@ skip_ingest_if_ran_within_minutes: 30
 market_hours:
   enabled: true
   timezone: America/New_York
-  weekdays: [0, 1, 2, 3, 4]  # Mon–Fri
+  weekdays: [0, 1, 2, 3, 4, 5, 6]  # every day (alerts are not limited to US trading days)
   start: "07:00"
   end: "20:00"
 

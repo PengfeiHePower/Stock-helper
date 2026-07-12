@@ -1,0 +1,56 @@
+# Strategy lenses — rule-based scoring (LLM explains, does not invent scores)
+lenses:
+  buffett_quality:
+    name: Buffett Quality-Value
+    name_zh: 巴菲特质量价值
+    horizon: 5y+
+    description: High ROE, reasonable leverage, valuation not extreme
+    weights:
+      quality: 0.45
+      value: 0.35
+      momentum: 0.05
+      low_risk: 0.15
+
+  bogle_core_satellite:
+    name: Bogle Core-Satellite
+    name_zh: 博格核心卫星
+    horizon: 10y+
+    description: Index core + high-quality watchlist satellites
+    weights:
+      quality: 0.35
+      value: 0.25
+      momentum: 0.15
+      low_risk: 0.25
+
+  dalio_all_weather:
+    name: Dalio All-Weather Style
+    name_zh: 达里奥全天候风格
+    horizon: 3y+
+    description: Macro-balanced; favors stability in slowdown regimes
+    weights:
+      quality: 0.30
+      value: 0.20
+      momentum: 0.10
+      low_risk: 0.40
+
+  momentum_trend:
+    name: Momentum Trend
+    name_zh: 动量趋势
+    horizon: 6-12m
+    description: 52-week range position + relative strength vs SPY
+    weights:
+      quality: 0.10
+      value: 0.05
+      momentum: 0.70
+      low_risk: 0.15
+
+  defensive_dividend:
+    name: Defensive Dividend
+    name_zh: 防御股息
+    horizon: 3y+
+    description: Lower beta, quality, less stretched valuation
+    weights:
+      quality: 0.35
+      value: 0.30
+      momentum: 0.05
+      low_risk: 0.30

@@ -1,0 +1,7 @@
+# Legacy strategy config — see config/cio.yaml for CIO pipeline v2
+# US equities only
+enabled: true
+default_risk_level: L2
+
+cio_report:
+  languages: [zh, en]

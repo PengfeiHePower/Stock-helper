@@ -55,6 +55,12 @@ class FinnhubClient:
             "/calendar/ipo", {"from": from_date, "to": to_date}
         ) or {"ipoCalendar": []}
 
+    def market_holidays(self, exchange: str = "US") -> dict:
+        return self._get("/stock/market-holiday", {"exchange": exchange}) or {}
+
+    def market_status(self, exchange: str = "US") -> dict:
+        return self._get("/stock/market-status", {"exchange": exchange}) or {}
+
 
 def normalize_finnhub_news(raw: dict, symbol: str | None = None) -> dict:
     ts = raw.get("datetime")

@@ -1,0 +1,39 @@
+# Market structure — major indices & breadth proxies
+indices:
+  SPY:
+    name: S&P 500
+    name_zh: 标普500
+    role: broad_market
+  QQQ:
+    name: Nasdaq 100
+    name_zh: 纳斯达克100
+    role: growth_tech
+  DIA:
+    name: Dow Jones
+    name_zh: 道琼斯
+    role: blue_chip
+
+breadth:
+  equal_weight: RSP      # equal-weight S&P 500
+  cap_weight: SPY        # cap-weight S&P 500
+  # RSP/SPY relative performance ≈ market breadth proxy
+
+growth_vs_broad:
+  growth: QQQ
+  broad: SPY
+
+sector_etfs: [XLK, XLF, XLE, XLV, XLY, XLP, XLI, XLB, XLU, XLRE, XLC]
+
+# Mag7 approximate index leadership (static weights for narrative only)
+mag7:
+  - { ticker: AAPL, weight_note: "largest SPY weight" }
+  - { ticker: MSFT, weight_note: "cloud/AI leader" }
+  - { ticker: NVDA, weight_note: "AI semis" }
+  - { ticker: GOOGL, weight_note: "search/AI" }
+  - { ticker: AMZN, weight_note: "e-commerce/cloud" }
+  - { ticker: META, weight_note: "digital ads" }
+  - { ticker: TSLA, weight_note: "EV/auto" }
+
+concentration:
+  narrow_rally_threshold: -3.0   # RSP vs SPY 3m spread % below this = narrow
+  healthy_breadth_threshold: 1.0

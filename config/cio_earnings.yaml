@@ -1,0 +1,7 @@
+# CIO earnings watch — importance tiers & horizon
+earnings_watch:
+  horizon_days: 14
+  max_items: 12
+  very_high: [NVDA, MSFT, AAPL, GOOGL, AMZN, META]
+  high: [AMD, MU, AVGO, TSLA, JPM, UNH, SMCI, CRWD, PANW, RTX, LMT, COST]
+  # medium = default for other CIO universe names

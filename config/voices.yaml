@@ -1,0 +1,35 @@
+enabled: true
+lookback_days: 14
+
+voices:
+  - id: buffett
+    name: Warren Buffett
+    name_zh: 巴菲特
+    keywords: [Buffett, Berkshire, 巴菲特, 伯克希尔, shareholder letter]
+
+  - id: musk
+    name: Elon Musk
+    name_zh: 马斯克
+    keywords: [Musk, Elon, Tesla, 马斯克, TSLA]
+
+  - id: trump
+    name: Donald Trump
+    name_zh: 特朗普
+    keywords: [Trump, tariff, tariffs, 特朗普, 关税]
+
+  - id: powell
+    name: Jerome Powell
+    name_zh: 鲍威尔
+    keywords: [Powell, Fed chair, FOMC, 鲍威尔, Federal Reserve]
+
+  - id: yellen
+    name: Janet Yellen
+    name_zh: 耶伦
+    keywords: [Yellen, Treasury Secretary, 耶伦]
+
+topic_keywords:
+  inflation: [inflation, CPI, PPI, 通胀]
+  rates: [Fed, rate cut, rate hike, FOMC, 降息, 加息]
+  ai: [AI, artificial intelligence, Nvidia, 人工智能]
+  tariff: [tariff, trade war, 关税]
+  earnings: [earnings, guidance, 财报]

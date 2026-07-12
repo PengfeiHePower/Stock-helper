@@ -94,6 +94,85 @@ class SystemMeta(Base):
     )
 
 
+class FundamentalSnapshot(Base):
+    __tablename__ = "fundamental_snapshots"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    ticker: Mapped[str] = mapped_column(String(16), index=True)
+    as_of_date: Mapped[str] = mapped_column(String(10), index=True)
+    metrics_json: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class RegimeSnapshot(Base):
+    __tablename__ = "regime_snapshots"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    as_of_date: Mapped[str] = mapped_column(String(10), index=True)
+    regime: Mapped[str] = mapped_column(String(32))
+    scores_json: Mapped[str] = mapped_column(Text)
+    indicators_json: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class FactorScoreRecord(Base):
+    __tablename__ = "factor_scores"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    as_of_date: Mapped[str] = mapped_column(String(10), index=True)
+    ticker: Mapped[str] = mapped_column(String(16), index=True)
+    factors_json: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class StrategyLensScoreRecord(Base):
+    __tablename__ = "strategy_lens_scores"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    as_of_date: Mapped[str] = mapped_column(String(10), index=True)
+    ticker: Mapped[str] = mapped_column(String(16), index=True)
+    lens_id: Mapped[str] = mapped_column(String(64), index=True)
+    score: Mapped[float] = mapped_column(Float)
+    details_json: Mapped[str] = mapped_column(Text, default="{}")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class MonthlyReportRecord(Base):
+    __tablename__ = "monthly_reports"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    report_month: Mapped[str] = mapped_column(String(7), index=True)  # YYYY-MM
+    markdown: Mapped[str] = mapped_column(Text)
+    snapshot_json: Mapped[str] = mapped_column(Text)
+    regime: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class ReasoningSnapshot(Base):
+    __tablename__ = "reasoning_snapshots"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    as_of_date: Mapped[str] = mapped_column(String(10), index=True)
+    snapshot_json: Mapped[str] = mapped_column(Text)
+    thesis_headline: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    overall_confidence: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    conflict_level: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class StrategySnapshot(Base):
+    __tablename__ = "strategy_snapshots"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    as_of_date: Mapped[str] = mapped_column(String(10), index=True)
+    snapshot_json: Mapped[str] = mapped_column(Text)
+    regime: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    risk_level: Mapped[Optional[str]] = mapped_column(String(8), nullable=True)
+    risk_posture: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    confidence: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
 _LAST_INGEST_KEY = "last_ingest_at"
 
 

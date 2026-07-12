@@ -1,0 +1,34 @@
+# Institutional 13F tracking (quarterly SEC filings)
+# Holdings parsing expands in future releases; we track filing status + theme notes.
+enabled: true
+
+institutions:
+  - id: berkshire
+    name: Berkshire Hathaway
+    cik: "0001067983"
+    strategy_lens: buffett_quality
+
+  - id: vanguard
+    name: Vanguard Group
+    cik: "0000102909"
+    strategy_lens: bogle_core_satellite
+
+  - id: bridgewater
+    name: Bridgewater Associates
+    cik: "0001350694"
+    strategy_lens: dalio_all_weather
+
+  - id: blackrock
+    name: BlackRock
+    cik: "0001364742"
+    strategy_lens: bogle_core_satellite
+
+  - id: ark
+    name: ARK Invest
+    cik: "0001697740"
+    strategy_lens: momentum_trend
+
+  - id: elliott
+    name: Elliott Management
+    cik: "0001791781"
+    strategy_lens: momentum_trend

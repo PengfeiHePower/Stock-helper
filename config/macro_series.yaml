@@ -1,0 +1,29 @@
+# FRED series for macro dashboard (requires FRED_API_KEY)
+# Docs: https://fred.stlouisfed.org/
+
+series:
+  # Policy & rates
+  fed_funds: DFF
+  two_year_yield: DGS2
+  ten_year_yield: DGS10
+  thirty_year_yield: DGS30
+  yield_curve_spread: T10Y2Y
+
+  # Inflation
+  cpi: CPIAUCSL
+  ppi: PPIFIS
+  breakeven_5y: T5YIE
+
+  # Growth / labor
+  unemployment: UNRATE
+  nonfarm_payrolls: PAYEMS
+  gdp: GDP
+  industrial_production: INDPRO
+
+  # Risk & global
+  vix: VIXCLS
+  hy_spread: BAMLH0A0HYM2
+  dollar_index: DTWEXBGS
+  wti_oil: DCOILWTICO
+
+history_months: 18

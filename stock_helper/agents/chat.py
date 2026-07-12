@@ -18,6 +18,7 @@ from stock_helper.agents.persona import (
     strip_chat_boilerplate,
 )
 from stock_helper.agents.watchlist_chat import handle_natural_watchlist
+from stock_helper.analysis.chat import handle_analysis_chat
 
 SYSTEM = chat_system_prompt()
 
@@ -132,6 +133,10 @@ def chat_reply(message: str, thread_context: str = "") -> str:
     wl_reply = handle_natural_watchlist(message, lang)
     if wl_reply:
         return wl_reply
+
+    analysis_reply = handle_analysis_chat(message, lang)
+    if analysis_reply:
+        return analysis_reply
 
     tracker = reset_tracker()
     try:

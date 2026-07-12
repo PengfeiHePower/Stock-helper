@@ -16,6 +16,8 @@ def send_brief_email(brief_md: str, session: str) -> bool:
         "morning": "Pre-Market",
         "close": "After-Hours Recap",
         "weekly": "Weekly Wrap",
+        "monthly": "Monthly Market & Strategy",
+        "biweekly": "Biweekly Market Pulse",
     }
     session_label = labels.get(session, "Brief")
     subject = f"{persona_name()} · {session_label}"
