@@ -99,7 +99,13 @@ Without LLM keys, template mode still includes snapshot, earnings, IPO, headline
 | Report | Schedule (ET) | Focus |
 |--------|---------------|--------|
 | **Monthly** | First US trading day, 08:00 | Reader View + appendix + macro 4D, structure, sentiment, factors, strategy lenses, institutions |
-| **Biweekly pulse** | First trading day on/after 1st & 15th, 08:15 | Compact Reader View + appendix (structure + sentiment; skips duplicate monthly sections) |
+| **Biweekly pulse** | First trading day on/after 1st & 15th, 08:15 | Reader View + **CIO Investment Outlook** + appendix |
+
+**Full report order (biweekly / monthly):**
+
+1. **Reader View** — market analysis (bilingual by default)
+2. **CIO Investment Outlook** — strategy pipeline (bilingual)
+3. **Analyst Appendix** — reasoning trace (English)
 
 - **Macro dimensions:** inflation, growth, policy, risk (FRED rules)
 - **Market structure:** breadth (RSP/SPY/IWM), QQQ vs SPY, sector rotation, Mag7, causal chains
@@ -118,33 +124,40 @@ Chat: `长期市场` / `长期分析 NVDA` / `L3 看 AMD` (monthly cache) · `�
 
 Details: [docs/ANALYSIS.md](docs/ANALYSIS.md)
 
-### CIO Strategy Layer (allocation recommendations)
+### CIO Investment Agent (v2 — US equities only)
 
-**Analysis ≠ advice.** The CIO Agent follows an **Investment Decision Pipeline** (v2):
+**Analysis ≠ advice.** Market analysis answers *what state is the market in?* The CIO Agent answers *how should US assets be configured?* via an **Investment Decision Pipeline**:
 
 ```
 Regime → Theme → Industry → Stock → Portfolio → Scenario → Triggers → Monitor
 ```
 
-Each layer uses **Evidence → Hypothesis → Counter → Decision** reasoning. **US equities only.**
+Each layer uses cross-cutting **Evidence → Hypothesis → Counter → Decision** reasoning (`stock_helper/cio/`).
 
 | Layer | Output |
 |-------|--------|
 | 1 Regime | Market state, narrative, key conflict (no trades yet) |
-| 2 Theme | ★-rated themes (AI Infrastructure, Defense, …) |
-| 3 Industry | GPU, Memory, Networking under themes |
+| 2 Theme | ★-rated themes (AI Infrastructure, Defense, Power Grid, …) + sub-industries |
+| 3 Industry | 30+ industries (GPU, HBM, Missile, Radar, GLP-1, …) |
 | 4 Stock | Ranked names by industry with bull/bear case |
-| 5 Portfolio | Strategic allocation + active tilts + ETF/stock sleeve |
-| 6–8 | Scenarios, If→Then triggers, health dashboard + watch list |
+| 5 Portfolio | Strategic US allocation + active tilts + ETF/stock sleeve |
+| 6 Scenario | Base / Bull / Bear branches with portfolio actions |
+| 7 Triggers | If → Then rules (yields, breadth, CPI, VIX, AI earnings) |
+| 8 Monitor | Market health dashboard + **Finnhub earnings calendar** + macro watch |
+
+**Theme tree** — configured in `config/cio.yaml` (e.g. AI Infrastructure → GPU / Memory / Networking / Optical / Cooling / Datacenter REIT; Defense → Missile / Radar / Satellite / …).
+
+**Earnings watch** — `cio/earnings_watch.py` pulls Finnhub calendar for watchlist + CIO industry tickers; maps to theme/industry; importance tiers in `config/cio_earnings.yaml`.
 
 ```bash
-stock-helper strategy
-stock-helper strategy --level L1
+stock-helper strategy              # standalone CIO outlook
+stock-helper strategy --level L1   # conservative profile
+stock-helper biweekly              # Reader View + full CIO + appendix
 ```
 
-Chat: `投资策略` / `资产配置` / `CIO`
+Chat: `投资策略` / `资产配置` / `CIO` (append `L1`/`L2`/`L3`)
 
-Config: `config/cio.yaml` · Details: [docs/STRATEGY.md](docs/STRATEGY.md)
+Config: `config/cio.yaml`, `config/cio_earnings.yaml` · Details: [docs/STRATEGY.md](docs/STRATEGY.md)
 
 ### Real-time alerts
 
@@ -157,6 +170,8 @@ Config: `config/cio.yaml` · Details: [docs/STRATEGY.md](docs/STRATEGY.md)
 
 - Scheduled briefs posted to `TELEGRAM_CHAT_ID`
 - **Moka-chan** chat bot (`stock-helper telegram`): Q&A on news/watchlist/brief, 中文/English (reply language follows **current message**), **persistent chat memory** (SQLite)
+- **Market analysis:** `市场结构` / `市场故事` → Chinese Reader View
+- **CIO strategy:** `投资策略` / `资产配置` / `CIO` → CIO Investment Outlook
 - Commands: `/start`, `/watchlist`, `/track TICKER`, `/untrack TICKER`
 - **Groups:** @mention the bot, reply to its message, or `/command@botname`; private chat needs no @. Bot must be allowed to **send messages** in the group (admin not required unless the group restricts members).
 
@@ -227,9 +242,9 @@ stock-helper slack                               # optional Slack bot
 
 stock-helper analyze                             # monthly market & strategy report
 stock-helper analyze --refresh                   # force refresh Finnhub fundamentals
-stock-helper biweekly                            # biweekly market pulse (Reader View)
-stock-helper strategy                            # CIO strategy recommendation
-stock-helper strategy --level L1                 # conservative allocation profile
+stock-helper biweekly                            # biweekly: Reader View + CIO outlook + appendix
+stock-helper strategy                            # CIO investment outlook only
+stock-helper strategy --level L1                 # conservative risk profile
 ```
 
 ### Background (recommended)
@@ -337,16 +352,33 @@ Market Reasoning Agent rules and Reader View output.
 | `thesis.use_llm` | `false` = evidence-derived thesis (default); `true` = optional LLM thesis |
 | `drivers.*` / `hypotheses.*` | Driver weights and hypothesis priors |
 
-### `config/strategy.yaml`
+### `config/cio.yaml`
 
-CIO Strategy Layer — allocation templates, sector/style tilts, position sizing, risk posture.
+CIO Investment Agent — **US equities only**. Theme/industry tree, allocation, triggers, watch keywords.
 
 | Key | Meaning |
 |-----|---------|
-| `regime_templates` | Base asset-class weights per macro regime |
+| `themes` | Investment themes (AI Infrastructure, Defense, …) with keywords & ETF proxies |
+| `industries` | 30+ sub-industries under themes (GPU, HBM, Missile, …) with tickers |
+| `weak_themes` | Underweight themes (Consumer Staples, Office REIT, …) |
+| `allocation` | Strategic weights by regime (us_equity, bonds, gold, cash) |
 | `risk_level_tilt` | L1/L2/L3 equity multipliers |
-| `cio_report.languages` | `[zh, en]` bilingual CIO section |
-| `position_sizing` | Core ETF, max satellite names, lens score floor |
+| `triggers` | If → Then rules (yields, VIX, breadth, CPI, AI earnings) |
+| `report.languages` | `[zh, en]` bilingual CIO section |
+
+### `config/cio_earnings.yaml`
+
+Finnhub earnings calendar for CIO watch list.
+
+| Key | Meaning |
+|-----|---------|
+| `earnings_watch.horizon_days` | Lookahead (default 14) |
+| `earnings_watch.very_high` / `high` | Ticker importance tiers (Mag7, NVDA, …) |
+| `earnings_watch.max_items` | Max earnings rows in report |
+
+### `config/strategy.yaml`
+
+Legacy stub — CIO v2 uses `config/cio.yaml`. Kept for backward compatibility.
 
 ---
 

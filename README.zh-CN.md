@@ -103,7 +103,13 @@ stock-helper status                            # 含「今天是否交易日」
 | 报告 | 时间（美东 ET） | 侧重点 |
 |------|----------------|--------|
 | **月度报告** | 每月第一个交易日 08:00 | Reader View + 附录 + 宏观四维、结构、情绪、因子、策略透镜、机构跟踪 |
-| **双周脉搏** | 每月 1 日、15 日及之后首个交易日 08:15 | 精简 Reader View + 附录（结构 + 情绪；不重复月度长文） |
+| **双周脉搏** | 每月 1 日、15 日及之后首个交易日 08:15 | Reader View + **CIO 投资展望** + 附录 |
+
+**完整报告顺序（双周 / 月度）：**
+
+1. **Reader View** — 市场分析（默认中英双语）
+2. **CIO 投资展望** — 投资决策流水线（默认中英双语）
+3. **Analyst Appendix** — 推理痕迹（英文）
 
 - **宏观四维：** 通胀、增长、政策、风险（FRED 规则）
 - **市场结构：** 广度（RSP/SPY/IWM）、QQQ vs SPY、板块轮动、Mag7、因果链
@@ -122,33 +128,40 @@ stock-helper biweekly             # 双周脉搏
 
 方法说明：[docs/ANALYSIS.md](docs/ANALYSIS.md)
 
-### CIO 策略层（投资决策流水线 v2）
+### CIO 投资 Agent（v2 — 仅美股）
 
-**分析 ≠ 投资建议。** CIO Agent 按 Buy-side 真实流程逐级缩小搜索空间：
+**分析 ≠ 投资建议。** 市场分析回答「市场是什么状态？」；CIO Agent 通过 **投资决策流水线** 回答「美股如何配置？」：
 
 ```
 市场阶段 → 主题 → 行业 → 个股 → 组合 → 情景 → 触发器 → 监控
 ```
 
-每层均有 **证据 → 假设 → 反证 → 决策** 推理链。**仅美股。**
+每层均有 **证据 → 假设 → 反证 → 决策** 推理链（`stock_helper/cio/`）。
 
 | 层级 | 输出 |
 |------|------|
 | 1 市场阶段 | 状态、叙事、核心矛盾（不给交易指令） |
-| 2 主题轮动 | ★ 评级主题（AI 基础设施、国防等） |
-| 3 行业轮动 | GPU、HBM、网络设备等 |
+| 2 主题轮动 | ★ 评级主题 + 下属行业一览 |
+| 3 行业轮动 | 30+ 细分行业（GPU、HBM、导弹、雷达、GLP-1…） |
 | 4 个股排序 | 按行业分组 + 多空逻辑 |
-| 5 组合构建 | 战略配置 + 战术倾斜 + ETF/股票仓位 |
-| 6–8 | 情景、If→Then 规则、健康度面板 + 关注日历 |
+| 5 组合构建 | 美股战略配置 + 战术倾斜 + ETF/股票仓位 |
+| 6 情景规划 | 基准 / 乐观 / 悲观 + 组合动作 |
+| 7 触发引擎 | If → Then 规则（收益率、广度、CPI、VIX、AI 财报） |
+| 8 监控面板 | 市场健康度 + **Finnhub 财报日历** + 宏观关注 |
+
+**主题树** — `config/cio.yaml`（如 AI 基础设施 → GPU/存储/网络/光通信/散热/数据中心 REIT；国防 → 导弹/雷达/卫星…）
+
+**财报关注** — `cio/earnings_watch.py` 拉取 Finnhub 日历，覆盖 watchlist + CIO 行业标的，映射主题/行业；重要性见 `config/cio_earnings.yaml`
 
 ```bash
-stock-helper strategy
-stock-helper strategy --level L1
+stock-helper strategy              # 单独跑 CIO 展望
+stock-helper strategy --level L1   # 保守档位
+stock-helper biweekly              # Reader View + 完整 CIO + 附录
 ```
 
-聊天：`投资策略` / `资产配置` / `CIO`
+聊天：`投资策略` / `资产配置` / `CIO`（可加 `L1`/`L2`/`L3`）
 
-配置：`config/cio.yaml` · 详见 [docs/STRATEGY.md](docs/STRATEGY.md)
+配置：`config/cio.yaml`、`config/cio_earnings.yaml` · 详见 [docs/STRATEGY.md](docs/STRATEGY.md)
 
 ### 实时 Alert
 
@@ -161,7 +174,8 @@ stock-helper strategy --level L1
 
 - 定时 brief 发到 `TELEGRAM_CHAT_ID`
 - **Moka-chan** 聊天 bot（`stock-helper telegram`）：新闻/watchlist/brief 问答，**中/英**回复（语言跟**当前这条消息**），**SQLite 持久对话记忆**
-- 长期市场：`市场结构` / `市场故事` → 中文版 Reader View；`长期市场` → 月度缓存
+- **市场分析：** `市场结构` / `市场故事` → 中文版 Reader View
+- **CIO 策略：** `投资策略` / `资产配置` / `CIO` → CIO 投资展望
 - 命令：`/start`、`/watchlist`、`/track TICKER`、`/untrack TICKER`
 - **群组：**需 `@` bot、回复 bot 消息，或 `/命令@bot名`；私聊直接发即可。群组里 bot 需有**发消息**权限（不必是 admin，除非群限制仅管理员发言）。
 
@@ -232,9 +246,9 @@ stock-helper slack                               # 可选 Slack bot
 
 stock-helper analyze                             # 月度市场与策略报告
 stock-helper analyze --refresh                   # 强制刷新 Finnhub 基本面
-stock-helper biweekly                            # 双周市场脉搏（Reader View）
-stock-helper strategy                            # CIO 投资策略建议
-stock-helper strategy --level L1                 # 保守档位配置
+stock-helper biweekly                            # 双周：Reader View + CIO 展望 + 附录
+stock-helper strategy                            # 仅 CIO 投资展望
+stock-helper strategy --level L1                 # 保守档位
 ```
 
 ### 后台运行（推荐）
@@ -342,16 +356,33 @@ Market Reasoning Agent 规则与 Reader View 输出语言。
 | `thesis.use_llm` | `false` = 证据推导 thesis（默认）；`true` = 可选 LLM thesis |
 | `drivers.*` / `hypotheses.*` | 驱动权重与假设先验 |
 
-### `config/strategy.yaml`
+### `config/cio.yaml`
 
-CIO 策略层——资产配置模板、行业/风格倾斜、仓位规则、风险姿态。
+CIO 投资 Agent — **仅美股**。主题/行业树、资产配置、触发规则。
 
 | 键 | 含义 |
 |----|------|
-| `regime_templates` | 各宏观阶段的基础资产权重 |
+| `themes` | 投资主题（AI 基础设施、国防等）及关键词、ETF 代理 |
+| `industries` | 30+ 细分行业及代表标的 |
+| `weak_themes` | 弱势主题（必需消费、办公地产等） |
+| `allocation` | 各宏观阶段战略权重（美股/债券/黄金/现金） |
 | `risk_level_tilt` | L1/L2/L3 股票仓位乘数 |
-| `cio_report.languages` | `[zh, en]` CIO 章节双语 |
-| `position_sizing` | 核心 ETF、卫星标的上限、透镜分数门槛 |
+| `triggers` | If → Then 规则 |
+| `report.languages` | `[zh, en]` CIO 章节双语 |
+
+### `config/cio_earnings.yaml`
+
+CIO 财报关注日历（Finnhub）。
+
+| 键 | 含义 |
+|----|------|
+| `earnings_watch.horizon_days` | 向前看天数（默认 14） |
+| `earnings_watch.very_high` / `high` | 标的重要性分级 |
+| `earnings_watch.max_items` | 报告中最多条数 |
+
+### `config/strategy.yaml`
+
+旧版占位 — CIO v2 以 `config/cio.yaml` 为准。
 
 ---
 
